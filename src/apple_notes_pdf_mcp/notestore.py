@@ -190,10 +190,48 @@ def query_all_attachments(
         conn.close()
 
 
+def list_folders(db_path: str) -> list[dict]:
+    """List all Apple Notes folders with hierarchy info and note counts."""
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    try:
+        rows = conn.execute("""
+            WITH RECURSIVE folder_tree(pk, title, parent_pk, depth) AS (
+                SELECT Z_PK, ZTITLE2, ZPARENT, 0
+                FROM ZICCLOUDSYNCINGOBJECT WHERE ZTITLE2 IS NOT NULL AND ZPARENT IS NULL
+                UNION ALL
+                SELECT c.Z_PK, c.ZTITLE2, c.ZPARENT, ft.depth + 1
+                FROM ZICCLOUDSYNCINGOBJECT c JOIN folder_tree ft ON c.ZPARENT = ft.pk
+                WHERE c.ZTITLE2 IS NOT NULL
+            )
+            SELECT pk, title, parent_pk, depth,
+                (SELECT COUNT(*) FROM ZICCLOUDSYNCINGOBJECT WHERE ZFOLDER = pk AND ZTITLE1 IS NOT NULL) AS note_count
+            FROM folder_tree ORDER BY depth, title
+        """).fetchall()
+        return [
+            {"name": r[1], "pk": r[0], "parent_pk": r[2], "depth": r[3], "note_count": r[4]}
+            for r in rows
+        ]
+    finally:
+        conn.close()
+
+
+def _folder_subtree_cte(folder_name: str) -> tuple[str, tuple]:
+    """Return a recursive CTE SQL fragment and params for scoping queries to a folder + descendants."""
+    cte = """
+        WITH RECURSIVE subtree(pk) AS (
+            SELECT Z_PK FROM ZICCLOUDSYNCINGOBJECT WHERE ZTITLE2 = ?
+            UNION ALL
+            SELECT c.Z_PK FROM ZICCLOUDSYNCINGOBJECT c JOIN subtree s ON c.ZPARENT = s.pk
+        )
+    """
+    return cte, (folder_name,)
+
+
 def search_notes(
     db_path: str,
     account_col: str,
     query: str,
+    folder_name: str | None = None,
 ) -> list[dict]:
     """Multi-surface search across note titles, snippets, and attachment filenames.
 
@@ -207,9 +245,17 @@ def search_notes(
     try:
         like_query = f"%{query}%"
 
+        # Build folder scoping CTE and clause if needed
+        cte_sql = ""
+        cte_params: tuple = ()
+        folder_clause = ""
+        if folder_name is not None:
+            cte_sql, cte_params = _folder_subtree_cte(folder_name)
+            folder_clause = " AND note.ZFOLDER IN (SELECT pk FROM subtree)"
+
         # Search note titles and snippets directly
         title_hits = conn.execute(
-            f"""
+            cte_sql + f"""
             SELECT DISTINCT
                 note.Z_PK          AS note_pk,
                 note.ZTITLE1       AS title,
@@ -222,13 +268,13 @@ def search_notes(
                   note.ZTITLE1 LIKE ? COLLATE NOCASE
                   OR note.ZSNIPPET LIKE ? COLLATE NOCASE
               )
-            """,
-            (like_query, like_query),
+            """ + folder_clause,
+            cte_params + (like_query, like_query),
         ).fetchall()
 
         # Search attachment filenames and resolve back to parent notes
         attachment_hits = conn.execute(
-            f"""
+            cte_sql + f"""
             SELECT DISTINCT
                 note.Z_PK          AS note_pk,
                 note.ZTITLE1       AS title,
@@ -240,8 +286,8 @@ def search_notes(
             JOIN ZICCLOUDSYNCINGOBJECT note ON note.Z_PK  = att.ZNOTE
             WHERE media.ZFILENAME LIKE ? COLLATE NOCASE
               AND note.ZTITLE1 IS NOT NULL
-            """,
-            (like_query,),
+            """ + folder_clause,
+            cte_params + (like_query,),
         ).fetchall()
 
         # Build set of title-hit PKs for O(1) lookup

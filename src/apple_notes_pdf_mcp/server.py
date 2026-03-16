@@ -56,7 +56,40 @@ def list_notes(folder: str | None = None) -> str:
 
 
 @mcp.tool()
-def search_notes(query: str) -> str:
+def list_folders() -> str:
+    """List all Apple Notes folders as a tree with note counts.
+
+    Returns:
+        JSON array of folder tree nodes, each with name, note_count,
+        and children (nested folders).
+    """
+    _init_db()
+    if not _db_path:
+        return json.dumps([])
+
+    with notestore.open_notestore(_db_path) as tmp_db:
+        flat = notestore.list_folders(tmp_db)
+
+    # Build tree from flat list
+    by_pk: dict[int, dict] = {}
+    roots: list[dict] = []
+    for f in flat:
+        node = {"name": f["name"], "note_count": f["note_count"], "children": []}
+        by_pk[f["pk"]] = node
+        if f["parent_pk"] is None:
+            roots.append(node)
+        else:
+            parent = by_pk.get(f["parent_pk"])
+            if parent:
+                parent["children"].append(node)
+            else:
+                roots.append(node)
+
+    return json.dumps(roots, indent=2)
+
+
+@mcp.tool()
+def search_notes(query: str, folder: str | None = None) -> str:
     """Search Apple Notes by title, body snippet, AND attachment filenames.
 
     This searches across multiple surfaces — it will find notes where the
@@ -66,6 +99,7 @@ def search_notes(query: str) -> str:
 
     Args:
         query: The search string to look for.
+        folder: Optional folder name to scope the search to (includes subfolders).
 
     Returns:
         JSON array of matching note objects with id, title, snippet,
@@ -78,7 +112,7 @@ def search_notes(query: str) -> str:
         return json.dumps(results, indent=2)
 
     with notestore.open_notestore(_db_path) as tmp_db:
-        results = notestore.search_notes(tmp_db, _account_col, query)
+        results = notestore.search_notes(tmp_db, _account_col, query, folder_name=folder)
 
     return json.dumps(results, indent=2)
 
