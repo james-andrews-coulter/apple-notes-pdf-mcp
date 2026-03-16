@@ -6,6 +6,7 @@ from apple_notes_pdf_mcp.notestore import (
     get_note_identifier,
     list_folders,
     list_notes_sql,
+    query_image_attachments,
     query_pdf_attachments,
     query_all_attachments,
     search_notes,
@@ -118,6 +119,16 @@ def notestore_db(tmp_path):
         INSERT INTO ZICCLOUDSYNCINGOBJECT (Z_PK, ZNOTE, ZURLSTRING)
         VALUES (10, 7, 'https://example.com/lab-results')
     """)
+    # Insert image media (Z_PK=11)
+    conn.execute("""
+        INSERT INTO ZICCLOUDSYNCINGOBJECT (Z_PK, ZFILENAME, ZIDENTIFIER)
+        VALUES (11, 'screenshot.png', 'MEDIA-UUID-IMG')
+    """)
+    # Insert image attachment (Z_PK=12, ZMEDIA=11, ZNOTE=2)
+    conn.execute("""
+        INSERT INTO ZICCLOUDSYNCINGOBJECT (Z_PK, ZMEDIA, ZNOTE, ZTYPEUTI)
+        VALUES (12, 11, 2, 'public.png')
+    """)
     # Add a summary to note 2 for testing FTS5 summary indexing
     conn.execute("""
         UPDATE ZICCLOUDSYNCINGOBJECT SET ZSUMMARY = 'Annual checkup notes'
@@ -149,7 +160,7 @@ def test_query_pdf_attachments_no_match(notestore_db):
 
 def test_query_all_attachments(notestore_db):
     results = query_all_attachments(notestore_db, "ZACCOUNT4")
-    assert len(results) == 3  # doc.pdf, photo.jpg, ferritin blood test results.pdf
+    assert len(results) == 4  # doc.pdf, photo.jpg, ferritin blood test results.pdf, screenshot.png
     types = {r["uti"] for r in results}
     assert "com.adobe.pdf" in types
     assert "public.jpeg" in types
@@ -157,7 +168,21 @@ def test_query_all_attachments(notestore_db):
 
 def test_query_all_attachments_filtered(notestore_db):
     results = query_all_attachments(notestore_db, "ZACCOUNT4", note_pk=2)
-    assert len(results) == 2
+    assert len(results) == 3  # doc.pdf, photo.jpg, screenshot.png
+
+
+def test_query_image_attachments(notestore_db):
+    """Image query returns only image attachments, not PDFs."""
+    results = query_image_attachments(notestore_db, "ZACCOUNT4", note_pk=2)
+    assert len(results) == 2  # photo.jpg (public.jpeg) and screenshot.png (public.png)
+    utis = {r["uti"] for r in results}
+    assert "public.jpeg" in utis
+    assert "public.png" in utis
+    assert "com.adobe.pdf" not in utis
+
+    # Note 7 has no image attachments
+    results = query_image_attachments(notestore_db, "ZACCOUNT4", note_pk=7)
+    assert results == []
 
 
 class TestSearchNotes:

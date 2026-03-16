@@ -19,6 +19,8 @@ MEDIA_BASE = os.path.expanduser(
     "~/Library/Group Containers/group.com.apple.notes"
 )
 
+IMAGE_UTIS = {"public.jpeg", "public.png", "public.heic"}
+
 _ATTACHMENT_QUERY = """
     SELECT
         note.ZTITLE1      AS note_title,
@@ -158,6 +160,30 @@ def query_pdf_attachments(
               AND note.Z_PK = ?
             """,
             (note_pk,),
+        ).fetchall()
+
+        return [_attachment_row_to_dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def query_image_attachments(
+    db_path: str,
+    account_col: str,
+    note_pk: int,
+) -> list[dict]:
+    """Query image attachments for a specific note."""
+    _validate_account_col(account_col)
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    try:
+        placeholders = ",".join("?" * len(IMAGE_UTIS))
+        rows = conn.execute(
+            _ATTACHMENT_QUERY.format(account_col=account_col)
+            + f"""
+            WHERE att.ZTYPEUTI IN ({placeholders})
+              AND note.Z_PK = ?
+            """,
+            (*IMAGE_UTIS, note_pk),
         ).fetchall()
 
         return [_attachment_row_to_dict(r) for r in rows]

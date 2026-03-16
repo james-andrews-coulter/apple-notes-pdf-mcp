@@ -8,8 +8,9 @@ import logging
 import re
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import TextContent, ImageContent
 
-from . import applescript, notestore, pdf_extract
+from . import applescript, notestore, pdf_extract, image_extract
 
 logger = logging.getLogger(__name__)
 
@@ -162,20 +163,26 @@ def get_note(note_id: str) -> str:
     return json.dumps(note, indent=2)
 
 
-@mcp.tool()
-def get_note_with_pdfs(note_id: str, max_pages_per_pdf: int = 50) -> str:
-    """Get a note's full body text WITH extracted text from all embedded PDFs.
+@mcp.tool(name="get_note_with_attachments")
+def get_note_with_attachments(
+    note_id: str,
+    max_pages_per_pdf: int = 50,
+    include_images: bool = True,
+    max_image_size: int = 1_048_576,
+) -> list[TextContent | ImageContent]:
+    """Get a note's full body text WITH extracted text from all embedded PDFs and images.
 
-    This is the key tool: it returns note body text and PDF content together
-    so an LLM can reason over both the note and its attachments.
+    This is the key tool: it returns note body text, PDF content, and image
+    attachments together so an LLM can reason over both the note and its attachments.
 
     Args:
         note_id: The x-coredata:// identifier from list_notes.
         max_pages_per_pdf: Max pages to extract per PDF (default 50).
+        include_images: Whether to include base64-encoded image attachments (default True).
+        max_image_size: Max image file size in bytes before resizing (default 1MB).
 
     Returns:
-        JSON with body, pdf_attachments (with extracted text),
-        and other_attachments (metadata only).
+        List of TextContent (JSON metadata) and ImageContent blocks for each image.
     """
     _init_db()
 
@@ -183,11 +190,12 @@ def get_note_with_pdfs(note_id: str, max_pages_per_pdf: int = 50) -> str:
     note = applescript.get_note(note_id)
 
     # Get note's Z_PK from the note_id
-    # The note_id is like x-coredata://UUID/ICNote/pNNN where NNN is the Z_PK
     note_pk = _extract_note_pk(note_id)
 
     pdf_attachments = []
+    image_attachments_meta = []
     other_attachments = []
+    image_contents = []
 
     note_url = None
     if note_pk and _db_path and _account_col:
@@ -195,6 +203,9 @@ def get_note_with_pdfs(note_id: str, max_pages_per_pdf: int = 50) -> str:
             pdf_rows = notestore.query_pdf_attachments(
                 tmp_db, _account_col, note_pk
             )
+            image_rows = notestore.query_image_attachments(
+                tmp_db, _account_col, note_pk
+            ) if include_images else []
             all_rows = notestore.query_all_attachments(
                 tmp_db, _account_col, note_pk
             )
@@ -233,10 +244,37 @@ def get_note_with_pdfs(note_id: str, max_pages_per_pdf: int = 50) -> str:
                 **result,
             })
 
-        # Non-PDF attachments
+        # Encode image attachments
+        for row in image_rows:
+            file_path = notestore.resolve_media_path(
+                row["account_id"], row["media_uuid"], row["filename"]
+            )
+            if file_path:
+                img_result = image_extract.encode_image(file_path, max_size_bytes=max_image_size)
+            else:
+                img_result = {"data": None, "mime_type": None, "size_bytes": 0, "error": "not_downloaded"}
+
+            image_attachments_meta.append({
+                "filename": row["filename"],
+                "mime_type": img_result["mime_type"],
+                "size_bytes": img_result["size_bytes"],
+                "error": img_result["error"],
+            })
+
+            if img_result["data"] and img_result["mime_type"]:
+                image_contents.append(
+                    ImageContent(
+                        type="image",
+                        data=img_result["data"],
+                        mimeType=img_result["mime_type"],
+                    )
+                )
+
+        # Non-PDF, non-image attachments go in other_attachments
         pdf_filenames = {r["filename"] for r in pdf_rows}
+        image_filenames = {r["filename"] for r in image_rows}
         for row in all_rows:
-            if row["filename"] not in pdf_filenames:
+            if row["filename"] not in pdf_filenames and row["filename"] not in image_filenames:
                 other_attachments.append({
                     "name": row["filename"],
                     "type": row["uti"],
@@ -250,9 +288,42 @@ def get_note_with_pdfs(note_id: str, max_pages_per_pdf: int = 50) -> str:
         "modification_date": note.get("modification_date"),
         "note_url": note_url,
         "pdf_attachments": pdf_attachments,
+        "image_attachments": image_attachments_meta,
         "other_attachments": other_attachments,
     }
-    return json.dumps(response, indent=2)
+
+    result_blocks: list[TextContent | ImageContent] = [
+        TextContent(type="text", text=json.dumps(response, indent=2)),
+    ]
+    result_blocks.extend(image_contents)
+
+    return result_blocks
+
+
+@mcp.tool(name="get_note_with_pdfs")
+def get_note_with_pdfs(
+    note_id: str,
+    max_pages_per_pdf: int = 50,
+    include_images: bool = True,
+    max_image_size: int = 1_048_576,
+) -> list[TextContent | ImageContent]:
+    """Backward-compatible alias for get_note_with_attachments.
+
+    Args:
+        note_id: The x-coredata:// identifier from list_notes.
+        max_pages_per_pdf: Max pages to extract per PDF (default 50).
+        include_images: Whether to include base64-encoded image attachments (default True).
+        max_image_size: Max image file size in bytes before resizing (default 1MB).
+
+    Returns:
+        List of TextContent (JSON metadata) and ImageContent blocks for each image.
+    """
+    return get_note_with_attachments(
+        note_id=note_id,
+        max_pages_per_pdf=max_pages_per_pdf,
+        include_images=include_images,
+        max_image_size=max_image_size,
+    )
 
 
 @mcp.tool()
