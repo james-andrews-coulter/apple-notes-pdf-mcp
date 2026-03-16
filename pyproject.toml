@@ -6,11 +6,34 @@ build-backend = "hatchling.build"
 name = "apple-notes-pdf-mcp"
 version = "0.1.0"
 description = "MCP server for Apple Notes with PDF attachment content extraction"
+readme = "README.md"
+license = "MIT"
 requires-python = ">=3.10"
+authors = [
+    { name = "James Alexander" },
+]
+keywords = ["mcp", "apple-notes", "pdf", "llm", "claude"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries",
+]
 dependencies = [
     "mcp[cli]>=1.0.0",
     "pdfplumber>=0.11.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/james-andrews-coulter/apple-notes-pdf-mcp"
+Repository = "https://github.com/james-andrews-coulter/apple-notes-pdf-mcp"
+Issues = "https://github.com/james-andrews-coulter/apple-notes-pdf-mcp/issues"
 
 [project.scripts]
 apple-notes-pdf-mcp = "apple_notes_pdf_mcp.server:main"
