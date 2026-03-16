@@ -6,7 +6,6 @@ import json
 import os
 import logging
 import re
-import shutil
 
 from mcp.server.fastmcp import FastMCP
 
@@ -36,11 +35,8 @@ def _init_db():
     if not os.path.exists(_db_path):
         logger.warning("NoteStore.sqlite not found at %s", _db_path)
         return
-    tmp_db, tmp_dir = notestore._copy_db_to_temp(_db_path)
-    try:
+    with notestore.open_notestore(_db_path) as tmp_db:
         _account_col = notestore.find_account_column(tmp_db)
-    finally:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
     logger.info("Using account column: %s", _account_col)
 
 
@@ -81,11 +77,8 @@ def search_notes(query: str) -> str:
         results = applescript.search_notes(query)
         return json.dumps(results, indent=2)
 
-    tmp_db, tmp_dir = notestore._copy_db_to_temp(_db_path)
-    try:
+    with notestore.open_notestore(_db_path) as tmp_db:
         results = notestore.search_notes(tmp_db, _account_col, query)
-    finally:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
 
     return json.dumps(results, indent=2)
 
@@ -133,16 +126,13 @@ def get_note_with_pdfs(note_id: str, max_pages_per_pdf: int = 50) -> str:
     other_attachments = []
 
     if note_pk and _db_path and _account_col:
-        tmp_db, tmp_dir = notestore._copy_db_to_temp(_db_path)
-        try:
+        with notestore.open_notestore(_db_path) as tmp_db:
             pdf_rows = notestore.query_pdf_attachments(
                 tmp_db, _account_col, note_pk
             )
             all_rows = notestore.query_all_attachments(
                 tmp_db, _account_col, note_pk
             )
-        finally:
-            shutil.rmtree(tmp_dir, ignore_errors=True)
 
         # Extract text from each PDF
         total_text_size = 0
@@ -215,13 +205,10 @@ def list_attachments(note_id: str | None = None) -> str:
 
     note_pk = _extract_note_pk(note_id) if note_id else None
 
-    tmp_db, tmp_dir = notestore._copy_db_to_temp(_db_path)
-    try:
+    with notestore.open_notestore(_db_path) as tmp_db:
         rows = notestore.query_all_attachments(
             tmp_db, _account_col, note_pk=note_pk
         )
-    finally:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
 
     results = []
     for row in rows:

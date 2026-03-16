@@ -52,31 +52,22 @@ def list_notes(folder: str | None = None) -> list[dict]:
 
 
 def search_notes(query: str) -> list[dict]:
-    """Search notes by title and body text. Case-insensitive."""
-    # Escape the query for use in JavaScript string
+    """Search notes by body text. Fallback when SQLite is unavailable."""
     safe_query = query.replace("\\", "\\\\").replace('"', '\\"')
-
     script = f"""
     const app = Application("Notes");
-    const byBody = app.notes.whose({{plaintext: {{_contains: "{safe_query}"}}}})();
-    const byTitle = app.notes.whose({{name: {{_contains: "{safe_query}"}}}})();
-    const seen = new Set();
-    const all = [...byBody, ...byTitle];
-    const result = [];
-    for (const n of all) {{
-        const nid = n.id();
-        if (seen.has(nid)) continue;
-        seen.add(nid);
+    const notes = app.notes.whose({{plaintext: {{_contains: "{safe_query}"}}}})();
+    const result = notes.map(n => {{
         const body = n.plaintext();
-        result.push({{
-            id: nid,
+        return {{
+            id: n.id(),
             title: n.name(),
             folder: n.container().name(),
             snippet: body.substring(0, 200),
             modification_date: n.modificationDate().toISOString(),
             attachment_count: n.attachments().length
-        }});
-    }}
+        }};
+    }});
     JSON.stringify(result);
     """
     output = _run_jxa(script)
