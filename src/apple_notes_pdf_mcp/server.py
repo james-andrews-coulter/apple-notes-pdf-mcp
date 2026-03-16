@@ -94,7 +94,17 @@ def get_note(note_id: str) -> str:
         JSON object with id, title, body, folder, modification_date,
         and attachments array (name + type only, no content).
     """
+    _init_db()
     note = applescript.get_note(note_id)
+
+    # Add deep link URL
+    note_pk = _extract_note_pk(note_id)
+    if note_pk and _db_path:
+        with notestore.open_notestore(_db_path) as tmp_db:
+            identifier = notestore.get_note_identifier(tmp_db, note_pk)
+        if identifier:
+            note["note_url"] = f"applenotes://showNote?noteId={identifier}"
+
     return json.dumps(note, indent=2)
 
 
@@ -125,6 +135,7 @@ def get_note_with_pdfs(note_id: str, max_pages_per_pdf: int = 50) -> str:
     pdf_attachments = []
     other_attachments = []
 
+    note_url = None
     if note_pk and _db_path and _account_col:
         with notestore.open_notestore(_db_path) as tmp_db:
             pdf_rows = notestore.query_pdf_attachments(
@@ -133,6 +144,9 @@ def get_note_with_pdfs(note_id: str, max_pages_per_pdf: int = 50) -> str:
             all_rows = notestore.query_all_attachments(
                 tmp_db, _account_col, note_pk
             )
+            identifier = notestore.get_note_identifier(tmp_db, note_pk)
+            if identifier:
+                note_url = f"applenotes://showNote?noteId={identifier}"
 
         # Extract text from each PDF
         total_text_size = 0
@@ -180,6 +194,7 @@ def get_note_with_pdfs(note_id: str, max_pages_per_pdf: int = 50) -> str:
         "body": note.get("body"),
         "folder": note.get("folder"),
         "modification_date": note.get("modification_date"),
+        "note_url": note_url,
         "pdf_attachments": pdf_attachments,
         "other_attachments": other_attachments,
     }
@@ -218,6 +233,9 @@ def list_attachments(note_id: str | None = None) -> str:
         file_exists = file_path is not None and os.path.exists(file_path)
         file_size = os.path.getsize(file_path) if file_exists else None
 
+        note_identifier = row.get("note_identifier")
+        note_url = f"applenotes://showNote?noteId={note_identifier}" if note_identifier else None
+
         results.append({
             "note_title": row["note_title"],
             "filename": row["filename"],
@@ -225,6 +243,7 @@ def list_attachments(note_id: str | None = None) -> str:
             "file_path": file_path,
             "file_exists": file_exists,
             "file_size_bytes": file_size,
+            "note_url": note_url,
         })
 
     return json.dumps(results, indent=2)

@@ -26,7 +26,8 @@ _ATTACHMENT_QUERY = """
         media.ZFILENAME   AS filename,
         media.ZIDENTIFIER AS media_uuid,
         acc.ZIDENTIFIER   AS account_id,
-        att.ZTYPEUTI      AS uti
+        att.ZTYPEUTI      AS uti,
+        note.ZIDENTIFIER  AS note_identifier
     FROM ZICCLOUDSYNCINGOBJECT att
     JOIN ZICCLOUDSYNCINGOBJECT media ON media.Z_PK = att.ZMEDIA
     JOIN ZICCLOUDSYNCINGOBJECT note  ON note.Z_PK  = att.ZNOTE
@@ -82,6 +83,7 @@ def _attachment_row_to_dict(row) -> dict:
         "media_uuid": row[3],
         "account_id": row[4],
         "uti": row[5],
+        "note_identifier": row[6],
     }
 
 
@@ -212,7 +214,8 @@ def search_notes(
                 note.Z_PK          AS note_pk,
                 note.ZTITLE1       AS title,
                 note.ZSNIPPET      AS snippet,
-                note.ZMODIFICATIONDATE1 AS mod_date
+                note.ZMODIFICATIONDATE1 AS mod_date,
+                note.ZIDENTIFIER   AS identifier
             FROM ZICCLOUDSYNCINGOBJECT note
             WHERE note.ZTITLE1 IS NOT NULL
               AND (
@@ -230,7 +233,8 @@ def search_notes(
                 note.Z_PK          AS note_pk,
                 note.ZTITLE1       AS title,
                 note.ZSNIPPET      AS snippet,
-                note.ZMODIFICATIONDATE1 AS mod_date
+                note.ZMODIFICATIONDATE1 AS mod_date,
+                note.ZIDENTIFIER   AS identifier
             FROM ZICCLOUDSYNCINGOBJECT media
             JOIN ZICCLOUDSYNCINGOBJECT att  ON att.ZMEDIA = media.Z_PK
             JOIN ZICCLOUDSYNCINGOBJECT note ON note.Z_PK  = att.ZNOTE
@@ -271,6 +275,10 @@ def search_notes(
             # Build the x-coredata ID using real store UUID
             note_id = f"x-coredata://{uuid_part}/ICNote/p{r[0]}"
 
+            # Build deep link URL from ZIDENTIFIER
+            identifier = r[4]
+            note_url = f"applenotes://showNote?noteId={identifier}" if identifier else None
+
             results.append({
                 "id": note_id,
                 "title": r[1] or "",
@@ -278,9 +286,23 @@ def search_notes(
                 "modification_date": mod_date_str,
                 "attachment_count": att_count,
                 "match_surface": "title/snippet" if r[0] in title_pks else "attachment_filename",
+                "note_url": note_url,
             })
 
         return results
+    finally:
+        conn.close()
+
+
+def get_note_identifier(db_path: str, note_pk: int) -> str | None:
+    """Get the ZIDENTIFIER for a note by its Z_PK."""
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    try:
+        row = conn.execute(
+            "SELECT ZIDENTIFIER FROM ZICCLOUDSYNCINGOBJECT WHERE Z_PK = ?",
+            (note_pk,),
+        ).fetchone()
+        return row[0] if row else None
     finally:
         conn.close()
 

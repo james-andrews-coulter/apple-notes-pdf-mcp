@@ -2,6 +2,7 @@ import sqlite3
 import pytest
 from apple_notes_pdf_mcp.notestore import (
     find_account_column,
+    get_note_identifier,
     query_pdf_attachments,
     query_all_attachments,
     search_notes,
@@ -49,13 +50,13 @@ def notestore_db(tmp_path):
     """)
     # Insert note (Z_PK=2, ZACCOUNT4=1) — title has "Test", snippet has "blood"
     conn.execute("""
-        INSERT INTO ZICCLOUDSYNCINGOBJECT (Z_PK, ZTITLE1, ZSNIPPET, ZMODIFICATIONDATE1, ZACCOUNT4)
-        VALUES (2, 'Test Note', 'Some snippet about blood work', 700000000.0, 1)
+        INSERT INTO ZICCLOUDSYNCINGOBJECT (Z_PK, ZTITLE1, ZSNIPPET, ZMODIFICATIONDATE1, ZACCOUNT4, ZIDENTIFIER)
+        VALUES (2, 'Test Note', 'Some snippet about blood work', 700000000.0, 1, 'NOTE-UUID-2')
     """)
     # Insert a second note (Z_PK=7) — title is generic, but has PDF with specific name
     conn.execute("""
-        INSERT INTO ZICCLOUDSYNCINGOBJECT (Z_PK, ZTITLE1, ZSNIPPET, ZMODIFICATIONDATE1, ZACCOUNT4)
-        VALUES (7, 'Followup appointment', NULL, 700100000.0, 1)
+        INSERT INTO ZICCLOUDSYNCINGOBJECT (Z_PK, ZTITLE1, ZSNIPPET, ZMODIFICATIONDATE1, ZACCOUNT4, ZIDENTIFIER)
+        VALUES (7, 'Followup appointment', NULL, 700100000.0, 1, 'NOTE-UUID-7')
     """)
     # Insert media (Z_PK=3)
     conn.execute("""
@@ -170,3 +171,17 @@ class TestSearchNotes:
         results = search_notes(notestore_db, "ZACCOUNT4", "ferritin")
         note = [r for r in results if r["title"] == "Followup appointment"][0]
         assert note["attachment_count"] == 1
+
+    def test_search_includes_note_url(self, notestore_db):
+        """Search results should include note_url with deep link."""
+        results = search_notes(notestore_db, "ZACCOUNT4", "Test")
+        assert len(results) >= 1
+        note = [r for r in results if r["title"] == "Test Note"][0]
+        assert note["note_url"] == "applenotes://showNote?noteId=NOTE-UUID-2"
+
+
+def test_get_note_identifier(notestore_db):
+    """get_note_identifier returns the correct ZIDENTIFIER for a known PK."""
+    assert get_note_identifier(notestore_db, 2) == "NOTE-UUID-2"
+    assert get_note_identifier(notestore_db, 7) == "NOTE-UUID-7"
+    assert get_note_identifier(notestore_db, 999) is None
