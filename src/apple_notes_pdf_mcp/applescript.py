@@ -6,13 +6,13 @@ import json
 import subprocess
 
 
-def _run_jxa(script: str) -> str:
+def _run_jxa(script: str, timeout: int = 60) -> str:
     """Run a JXA (JavaScript for Automation) script and return stdout."""
     result = subprocess.run(
         ["osascript", "-l", "JavaScript", "-e", script],
         capture_output=True,
         text=True,
-        timeout=30,
+        timeout=timeout,
     )
     if result.returncode != 0:
         raise RuntimeError(f"JXA error: {result.stderr}")
@@ -52,24 +52,31 @@ def list_notes(folder: str | None = None) -> list[dict]:
 
 
 def search_notes(query: str) -> list[dict]:
-    """Search notes by plaintext content. Case-insensitive."""
+    """Search notes by title and body text. Case-insensitive."""
     # Escape the query for use in JavaScript string
     safe_query = query.replace("\\", "\\\\").replace('"', '\\"')
 
     script = f"""
     const app = Application("Notes");
-    const notes = app.notes.whose({{plaintext: {{_contains: "{safe_query}"}}}})();
-    const result = notes.map(n => {{
+    const byBody = app.notes.whose({{plaintext: {{_contains: "{safe_query}"}}}})();
+    const byTitle = app.notes.whose({{name: {{_contains: "{safe_query}"}}}})();
+    const seen = new Set();
+    const all = [...byBody, ...byTitle];
+    const result = [];
+    for (const n of all) {{
+        const nid = n.id();
+        if (seen.has(nid)) continue;
+        seen.add(nid);
         const body = n.plaintext();
-        return {{
-            id: n.id(),
+        result.push({{
+            id: nid,
             title: n.name(),
             folder: n.container().name(),
             snippet: body.substring(0, 200),
             modification_date: n.modificationDate().toISOString(),
             attachment_count: n.attachments().length
-        }};
-    }});
+        }});
+    }}
     JSON.stringify(result);
     """
     output = _run_jxa(script)
