@@ -1,6 +1,7 @@
 import sqlite3
 import pytest
 from apple_notes_pdf_mcp.notestore import (
+    _create_fts_index,
     find_account_column,
     get_note_identifier,
     list_folders,
@@ -8,6 +9,7 @@ from apple_notes_pdf_mcp.notestore import (
     query_pdf_attachments,
     query_all_attachments,
     search_notes,
+    search_notes_fts,
 )
 
 
@@ -46,7 +48,10 @@ def notestore_db(tmp_path):
             ZACCOUNT4 INTEGER,
             ZTITLE2 TEXT,
             ZPARENT INTEGER,
-            ZFOLDER INTEGER
+            ZFOLDER INTEGER,
+            ZSUMMARY TEXT,
+            ZOCRSUMMARY TEXT,
+            ZURLSTRING TEXT
         )
     """)
     # Insert account (Z_PK=1)
@@ -107,6 +112,16 @@ def notestore_db(tmp_path):
     conn.execute("""
         INSERT INTO ZICCLOUDSYNCINGOBJECT (Z_PK, ZMEDIA, ZNOTE, ZTYPEUTI)
         VALUES (9, 8, 7, 'com.adobe.pdf')
+    """)
+    # Insert a URL row linked to note 7 (for testing FTS5 url indexing)
+    conn.execute("""
+        INSERT INTO ZICCLOUDSYNCINGOBJECT (Z_PK, ZNOTE, ZURLSTRING)
+        VALUES (10, 7, 'https://example.com/lab-results')
+    """)
+    # Add a summary to note 2 for testing FTS5 summary indexing
+    conn.execute("""
+        UPDATE ZICCLOUDSYNCINGOBJECT SET ZSUMMARY = 'Annual checkup notes'
+        WHERE Z_PK = 2
     """)
     conn.commit()
     conn.close()
@@ -301,3 +316,70 @@ class TestListNotesSql:
         by_title = {r["title"]: r for r in results}
         assert by_title["Test Note"]["note_url"] == "applenotes://showNote?noteId=NOTE-UUID-2"
         assert by_title["Followup appointment"]["note_url"] == "applenotes://showNote?noteId=NOTE-UUID-7"
+
+
+class TestFTS5Search:
+    def test_create_fts_index(self, notestore_db):
+        """_create_fts_index creates a queryable FTS5 table."""
+        _create_fts_index(notestore_db)
+        conn = sqlite3.connect(notestore_db)
+        try:
+            # Content-less FTS5 table: verify it exists and has indexed rows
+            # by checking that a known term matches
+            rows = conn.execute(
+                "SELECT rowid FROM notes_fts WHERE notes_fts MATCH ?", ("Test",)
+            ).fetchall()
+            assert len(rows) >= 1
+            rows = conn.execute(
+                "SELECT rowid FROM notes_fts WHERE notes_fts MATCH ?", ("Followup",)
+            ).fetchall()
+            assert len(rows) >= 1
+        finally:
+            conn.close()
+
+    def test_fts_search_by_title(self, notestore_db):
+        """FTS5 search finds notes by title."""
+        results = search_notes_fts(notestore_db, "ZACCOUNT4", "Test")
+        assert len(results) >= 1
+        titles = {r["title"] for r in results}
+        assert "Test Note" in titles
+        assert results[0]["match_surface"] == "fts5"
+
+    def test_fts_search_by_filename(self, notestore_db):
+        """FTS5 search finds notes via attachment filename."""
+        results = search_notes_fts(notestore_db, "ZACCOUNT4", "ferritin")
+        assert len(results) >= 1
+        titles = {r["title"] for r in results}
+        assert "Followup appointment" in titles
+
+    def test_fts_search_with_folder(self, notestore_db):
+        """FTS5 search with folder_name scopes results to folder subtree."""
+        # "ferritin" is in Lab Results (subfolder of Health & Fitness)
+        results = search_notes_fts(notestore_db, "ZACCOUNT4", "ferritin", folder_name="Health & Fitness")
+        assert len(results) >= 1
+        titles = {r["title"] for r in results}
+        assert "Followup appointment" in titles
+
+        # "Test" note is in Work folder, should NOT appear in Health & Fitness scope
+        results = search_notes_fts(notestore_db, "ZACCOUNT4", "Test", folder_name="Health & Fitness")
+        titles = {r["title"] for r in results}
+        assert "Test Note" not in titles
+
+    def test_fts_search_no_match(self, notestore_db):
+        """FTS5 search returns empty for nonsense query."""
+        results = search_notes_fts(notestore_db, "ZACCOUNT4", "xyznonexistent")
+        assert results == []
+
+    def test_fts_prefix_match(self, notestore_db):
+        """FTS5 prefix search with * finds partial matches."""
+        _create_fts_index(notestore_db)
+        conn = sqlite3.connect(f"file:{notestore_db}?mode=ro", uri=True)
+        try:
+            # Direct FTS5 prefix query
+            rows = conn.execute(
+                "SELECT rowid FROM notes_fts WHERE notes_fts MATCH ?",
+                ("ferr*",),
+            ).fetchall()
+            assert len(rows) >= 1
+        finally:
+            conn.close()

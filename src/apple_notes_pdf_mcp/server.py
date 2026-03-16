@@ -128,7 +128,11 @@ def search_notes(query: str, folder: str | None = None) -> str:
         return json.dumps(results, indent=2)
 
     with notestore.open_notestore(_db_path) as tmp_db:
-        results = notestore.search_notes(tmp_db, _account_col, query, folder_name=folder)
+        try:
+            results = notestore.search_notes_fts(tmp_db, _account_col, query, folder_name=folder)
+        except Exception:
+            logger.warning("FTS5 search failed, falling back to LIKE-based search", exc_info=True)
+            results = notestore.search_notes(tmp_db, _account_col, query, folder_name=folder)
 
     return json.dumps(results, indent=2)
 

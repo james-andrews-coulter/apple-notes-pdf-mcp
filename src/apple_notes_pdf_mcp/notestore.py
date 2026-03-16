@@ -430,6 +430,147 @@ def list_notes_sql(
         conn.close()
 
 
+def _create_fts_index(db_path: str) -> None:
+    """Create and populate an FTS5 virtual table on the temp DB copy.
+
+    The db_path should be a temp copy (not the original NoteStore), so we
+    open it in read-write mode (no ?mode=ro).
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
+                title, snippet, filename, summary, ocr_summary, url,
+                content='', content_rowid='rowid',
+                tokenize='porter unicode61'
+            )
+        """)
+        conn.execute("""
+            INSERT INTO notes_fts(rowid, title, snippet, filename, summary, ocr_summary, url)
+            SELECT note.Z_PK,
+                   COALESCE(note.ZTITLE1, ''),
+                   COALESCE(note.ZSNIPPET, ''),
+                   COALESCE(GROUP_CONCAT(media.ZFILENAME, ' '), ''),
+                   COALESCE(note.ZSUMMARY, ''),
+                   COALESCE(note.ZOCRSUMMARY, ''),
+                   COALESCE((SELECT GROUP_CONCAT(u.ZURLSTRING, ' ')
+                             FROM (SELECT DISTINCT mu.ZURLSTRING
+                                   FROM ZICCLOUDSYNCINGOBJECT mu
+                                   WHERE mu.ZNOTE = note.Z_PK AND mu.ZURLSTRING IS NOT NULL) u), '')
+            FROM ZICCLOUDSYNCINGOBJECT note
+            LEFT JOIN ZICCLOUDSYNCINGOBJECT att ON att.ZNOTE = note.Z_PK AND att.ZTYPEUTI IS NOT NULL
+            LEFT JOIN ZICCLOUDSYNCINGOBJECT media ON media.Z_PK = att.ZMEDIA
+            WHERE note.ZTITLE1 IS NOT NULL
+            GROUP BY note.Z_PK
+        """)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _escape_fts_query(query: str) -> str:
+    """Escape a user query for FTS5 MATCH by quoting each word."""
+    words = query.split()
+    if not words:
+        return '""'
+    # Quote each word to treat as literal; join with spaces (implicit AND)
+    return " ".join(f'"{w}"' for w in words)
+
+
+def search_notes_fts(
+    db_path: str,
+    account_col: str,
+    query: str,
+    folder_name: str | None = None,
+) -> list[dict]:
+    """Full-text search using FTS5 with Porter stemming and ranking.
+
+    Falls back to raising an exception if FTS5 is unavailable, so the
+    caller can catch and use LIKE-based search_notes() instead.
+    """
+    _validate_account_col(account_col)
+    _create_fts_index(db_path)
+
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    try:
+        fts_query = _escape_fts_query(query)
+
+        # Get ranked FTS5 results
+        fts_rows = conn.execute(
+            "SELECT rowid, rank FROM notes_fts WHERE notes_fts MATCH ? ORDER BY rank LIMIT 50",
+            (fts_query,),
+        ).fetchall()
+
+        if not fts_rows:
+            return []
+
+        rowids = [r[0] for r in fts_rows]
+        # Preserve FTS5 rank ordering
+        rank_order = {r[0]: i for i, r in enumerate(fts_rows)}
+
+        placeholders = ",".join("?" * len(rowids))
+
+        # Build folder scoping CTE and clause if needed
+        cte_sql = ""
+        cte_params: tuple = ()
+        folder_clause = ""
+        if folder_name is not None:
+            cte_sql, cte_params = _folder_subtree_cte(folder_name)
+            folder_clause = " AND note.ZFOLDER IN (SELECT pk FROM subtree)"
+
+        sql = cte_sql + f"""
+            SELECT
+                note.Z_PK,
+                note.ZTITLE1,
+                note.ZSNIPPET,
+                note.ZMODIFICATIONDATE1,
+                note.ZIDENTIFIER,
+                (SELECT COUNT(*) FROM ZICCLOUDSYNCINGOBJECT
+                 WHERE ZNOTE = note.Z_PK AND ZTYPEUTI IS NOT NULL) AS attachment_count
+            FROM ZICCLOUDSYNCINGOBJECT note
+            WHERE note.Z_PK IN ({placeholders})
+              AND note.ZTITLE1 IS NOT NULL
+            {folder_clause}
+        """
+        params = cte_params + tuple(rowids)
+        rows = conn.execute(sql, params).fetchall()
+
+        store_uuid = get_store_uuid(db_path)
+        uuid_part = store_uuid if store_uuid else "unknown"
+
+        results = []
+        for r in rows:
+            pk, title, snippet, mod_date, identifier, att_count = r
+
+            mod_date_str = None
+            if mod_date is not None:
+                cd_epoch = datetime.datetime(2001, 1, 1, tzinfo=datetime.timezone.utc)
+                mod_date_str = (cd_epoch + datetime.timedelta(seconds=mod_date)).isoformat()
+
+            note_id = f"x-coredata://{uuid_part}/ICNote/p{pk}"
+            note_url = f"applenotes://showNote?noteId={identifier}" if identifier else None
+
+            results.append({
+                "id": note_id,
+                "title": title or "",
+                "snippet": (snippet or "")[:200],
+                "modification_date": mod_date_str,
+                "attachment_count": att_count,
+                "match_surface": "fts5",
+                "note_url": note_url,
+                "_rank_order": rank_order.get(pk, 999),
+            })
+
+        # Sort by FTS5 rank order
+        results.sort(key=lambda x: x["_rank_order"])
+        for r in results:
+            del r["_rank_order"]
+
+        return results
+    finally:
+        conn.close()
+
+
 def get_note_identifier(db_path: str, note_pk: int) -> str | None:
     """Get the ZIDENTIFIER for a note by its Z_PK."""
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
