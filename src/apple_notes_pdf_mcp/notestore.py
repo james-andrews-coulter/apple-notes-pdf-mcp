@@ -497,12 +497,22 @@ def _create_fts_index(db_path: str) -> None:
 
 
 def _escape_fts_query(query: str) -> str:
-    """Escape a user query for FTS5 MATCH by quoting each word."""
+    """Escape a user query for FTS5 MATCH.
+
+    Quotes each word for safety, but preserves trailing * for prefix matching.
+    """
     words = query.split()
     if not words:
         return '""'
-    # Quote each word to treat as literal; join with spaces (implicit AND)
-    return " ".join(f'"{w}"' for w in words)
+    escaped = []
+    for word in words:
+        if word.endswith('*'):
+            # Prefix match: quote the stem, append * outside
+            stem = word[:-1]
+            escaped.append(f'"{stem}"*' if stem else '*')
+        else:
+            escaped.append(f'"{word}"')
+    return " ".join(escaped)
 
 
 def search_notes_fts(
