@@ -4,6 +4,7 @@ from apple_notes_pdf_mcp.notestore import (
     find_account_column,
     get_note_identifier,
     list_folders,
+    list_notes_sql,
     query_pdf_attachments,
     query_all_attachments,
     search_notes,
@@ -36,6 +37,7 @@ def notestore_db(tmp_path):
             ZTITLE1 TEXT,
             ZSNIPPET TEXT,
             ZMODIFICATIONDATE1 FLOAT,
+            ZCREATIONDATE3 FLOAT,
             ZMEDIA INTEGER,
             ZNOTE INTEGER,
             ZFILENAME TEXT,
@@ -68,13 +70,13 @@ def notestore_db(tmp_path):
 
     # Insert note (Z_PK=2, ZACCOUNT4=1) — title has "Test", snippet has "blood", in Work folder
     conn.execute("""
-        INSERT INTO ZICCLOUDSYNCINGOBJECT (Z_PK, ZTITLE1, ZSNIPPET, ZMODIFICATIONDATE1, ZACCOUNT4, ZIDENTIFIER, ZFOLDER)
-        VALUES (2, 'Test Note', 'Some snippet about blood work', 700000000.0, 1, 'NOTE-UUID-2', 102)
+        INSERT INTO ZICCLOUDSYNCINGOBJECT (Z_PK, ZTITLE1, ZSNIPPET, ZMODIFICATIONDATE1, ZCREATIONDATE3, ZACCOUNT4, ZIDENTIFIER, ZFOLDER)
+        VALUES (2, 'Test Note', 'Some snippet about blood work', 700000000.0, 699900000.0, 1, 'NOTE-UUID-2', 102)
     """)
     # Insert a second note (Z_PK=7) — title is generic, but has PDF with specific name, in Lab Results subfolder
     conn.execute("""
-        INSERT INTO ZICCLOUDSYNCINGOBJECT (Z_PK, ZTITLE1, ZSNIPPET, ZMODIFICATIONDATE1, ZACCOUNT4, ZIDENTIFIER, ZFOLDER)
-        VALUES (7, 'Followup appointment', NULL, 700100000.0, 1, 'NOTE-UUID-7', 101)
+        INSERT INTO ZICCLOUDSYNCINGOBJECT (Z_PK, ZTITLE1, ZSNIPPET, ZMODIFICATIONDATE1, ZCREATIONDATE3, ZACCOUNT4, ZIDENTIFIER, ZFOLDER)
+        VALUES (7, 'Followup appointment', NULL, 700100000.0, 700050000.0, 1, 'NOTE-UUID-7', 101)
     """)
     # Insert media (Z_PK=3)
     conn.execute("""
@@ -249,3 +251,53 @@ class TestFolderScopedSearch:
         """Searching with a nonexistent folder returns empty results."""
         results = search_notes(notestore_db, "ZACCOUNT4", "Test", folder_name="Nonexistent Folder")
         assert results == []
+
+
+class TestListNotesSql:
+    def test_list_notes_sql_default(self, notestore_db):
+        """Returns notes sorted by modification date desc with all expected fields."""
+        results = list_notes_sql(notestore_db, "ZACCOUNT4")
+        assert len(results) == 2
+        # Most recently modified first (700100000 > 700000000)
+        assert results[0]["title"] == "Followup appointment"
+        assert results[1]["title"] == "Test Note"
+        # Check all expected fields present
+        for note in results:
+            assert "id" in note
+            assert "title" in note
+            assert "folder" in note
+            assert "snippet" in note
+            assert "modification_date" in note
+            assert "attachment_count" in note
+            assert "note_url" in note
+            assert note["id"].startswith("x-coredata://")
+
+    def test_list_notes_sql_sort_title(self, notestore_db):
+        """Returns notes sorted alphabetically by title."""
+        results = list_notes_sql(notestore_db, "ZACCOUNT4", sort_by="title")
+        assert len(results) == 2
+        assert results[0]["title"] == "Followup appointment"
+        assert results[1]["title"] == "Test Note"
+
+    def test_list_notes_sql_limit(self, notestore_db):
+        """limit=1 returns only 1 note."""
+        results = list_notes_sql(notestore_db, "ZACCOUNT4", limit=1)
+        assert len(results) == 1
+
+    def test_list_notes_sql_folder(self, notestore_db):
+        """folder_name scopes results to that folder and subfolders."""
+        results = list_notes_sql(notestore_db, "ZACCOUNT4", folder_name="Health & Fitness")
+        assert len(results) == 1
+        assert results[0]["title"] == "Followup appointment"
+
+        # Work folder should only have Test Note
+        results = list_notes_sql(notestore_db, "ZACCOUNT4", folder_name="Work")
+        assert len(results) == 1
+        assert results[0]["title"] == "Test Note"
+
+    def test_list_notes_sql_includes_note_url(self, notestore_db):
+        """Results include note_url field with deep link."""
+        results = list_notes_sql(notestore_db, "ZACCOUNT4")
+        by_title = {r["title"]: r for r in results}
+        assert by_title["Test Note"]["note_url"] == "applenotes://showNote?noteId=NOTE-UUID-2"
+        assert by_title["Followup appointment"]["note_url"] == "applenotes://showNote?noteId=NOTE-UUID-7"

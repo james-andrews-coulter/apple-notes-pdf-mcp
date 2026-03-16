@@ -41,16 +41,32 @@ def _init_db():
 
 
 @mcp.tool()
-def list_notes(folder: str | None = None) -> str:
+def list_notes(
+    folder: str | None = None,
+    sort_by: str = "modified",
+    limit: int = 50,
+) -> str:
     """List all Apple Notes with basic metadata.
 
     Args:
-        folder: Optional folder name to filter by.
+        folder: Optional folder name to filter by (includes subfolders).
+        sort_by: Sort order — "modified" (newest first, default) or "title" (A-Z).
+        limit: Maximum number of notes to return (default 50).
 
     Returns:
         JSON array of note objects with id, title, folder, snippet,
-        modification_date, and attachment_count.
+        modification_date, attachment_count, and note_url.
     """
+    _init_db()
+    if _db_path and _account_col:
+        with notestore.open_notestore(_db_path) as tmp_db:
+            notes = notestore.list_notes_sql(
+                tmp_db, _account_col,
+                sort_by=sort_by, limit=limit, folder_name=folder,
+            )
+        return json.dumps(notes, indent=2)
+
+    # Fallback to JXA if DB not available
     notes = applescript.list_notes(folder=folder)
     return json.dumps(notes, indent=2)
 

@@ -340,6 +340,96 @@ def search_notes(
         conn.close()
 
 
+def list_notes_sql(
+    db_path: str,
+    account_col: str,
+    sort_by: str = "modified",
+    limit: int = 50,
+    folder_name: str | None = None,
+) -> list[dict]:
+    """List notes via SQLite with sorting and limit support.
+
+    Args:
+        db_path: Path to the (copied) NoteStore.sqlite.
+        account_col: The ZACCOUNT column name for this macOS version.
+        sort_by: Sort order — "modified" (newest first) or "title" (A-Z).
+        limit: Maximum number of notes to return.
+        folder_name: Optional folder name to scope results (includes subfolders).
+
+    Returns:
+        List of note dicts with id, title, folder, snippet,
+        modification_date, attachment_count, and note_url.
+    """
+    _validate_account_col(account_col)
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    try:
+        # Build folder scoping CTE and clause if needed
+        cte_sql = ""
+        cte_params: tuple = ()
+        folder_clause = ""
+        if folder_name is not None:
+            cte_sql, cte_params = _folder_subtree_cte(folder_name)
+            folder_clause = " AND note.ZFOLDER IN (SELECT pk FROM subtree)"
+
+        # Sort mapping
+        sort_map = {
+            "modified": "note.ZMODIFICATIONDATE1 DESC NULLS LAST",
+            "title": "note.ZTITLE1 COLLATE NOCASE ASC",
+        }
+        order_clause = sort_map.get(sort_by, sort_map["modified"])
+
+        sql = cte_sql + f"""
+            SELECT
+                note.Z_PK,
+                note.ZTITLE1,
+                note.ZSNIPPET,
+                note.ZMODIFICATIONDATE1,
+                note.ZCREATIONDATE3,
+                note.ZIDENTIFIER,
+                folder.ZTITLE2 AS folder_name,
+                (SELECT COUNT(*) FROM ZICCLOUDSYNCINGOBJECT
+                 WHERE ZNOTE = note.Z_PK AND ZTYPEUTI IS NOT NULL) AS attachment_count
+            FROM ZICCLOUDSYNCINGOBJECT note
+            LEFT JOIN ZICCLOUDSYNCINGOBJECT folder ON folder.Z_PK = note.ZFOLDER
+            WHERE note.ZTITLE1 IS NOT NULL
+            {folder_clause}
+            ORDER BY {order_clause}
+            LIMIT ?
+        """
+        params = cte_params + (limit,)
+        rows = conn.execute(sql, params).fetchall()
+
+        store_uuid = get_store_uuid(db_path)
+        uuid_part = store_uuid if store_uuid else "unknown"
+
+        results = []
+        for r in rows:
+            pk, title, snippet, mod_date, create_date, identifier, folder, att_count = r
+
+            # Convert Core Data timestamp to ISO (epoch is 2001-01-01)
+            mod_date_str = None
+            if mod_date is not None:
+                cd_epoch = datetime.datetime(2001, 1, 1, tzinfo=datetime.timezone.utc)
+                mod_date_str = (cd_epoch + datetime.timedelta(seconds=mod_date)).isoformat()
+
+            note_id = f"x-coredata://{uuid_part}/ICNote/p{pk}"
+            note_url = f"applenotes://showNote?noteId={identifier}" if identifier else None
+
+            results.append({
+                "id": note_id,
+                "title": title or "",
+                "folder": folder or "",
+                "snippet": (snippet or "")[:200],
+                "modification_date": mod_date_str,
+                "attachment_count": att_count,
+                "note_url": note_url,
+            })
+
+        return results
+    finally:
+        conn.close()
+
+
 def get_note_identifier(db_path: str, note_pk: int) -> str | None:
     """Get the ZIDENTIFIER for a note by its Z_PK."""
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
