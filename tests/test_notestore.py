@@ -312,12 +312,13 @@ class TestListNotesSql:
             assert "note_url" in note
             assert note["id"].startswith("x-coredata://")
 
-    def test_list_notes_sql_sort_title(self, notestore_db):
-        """Returns notes sorted alphabetically by title."""
-        results = list_notes_sql(notestore_db, "ZACCOUNT4", sort_by="title")
+    def test_list_notes_sql_ascending(self, notestore_db):
+        """ascending=True returns oldest-modified first."""
+        results = list_notes_sql(notestore_db, "ZACCOUNT4", ascending=True)
         assert len(results) == 2
-        assert results[0]["title"] == "Followup appointment"
-        assert results[1]["title"] == "Test Note"
+        # Oldest first (700000000 < 700100000)
+        assert results[0]["title"] == "Test Note"
+        assert results[1]["title"] == "Followup appointment"
 
     def test_list_notes_sql_limit(self, notestore_db):
         """limit=1 returns only 1 note."""

@@ -7,8 +7,8 @@ This guide explains how to configure an LLM agent to effectively use the apple-n
 The recommended pattern for an agent interacting with Apple Notes:
 
 1. **`list_folders`** -- Understand the folder structure and where notes live.
-2. **`search_notes(query, folder=...)`** -- Targeted FTS5 search within a specific folder tree.
-3. **`get_note_with_attachments`** -- Retrieve the full note body, extracted PDF text, and inline images.
+2. **`search_notes(query, folder=...)`** -- Targeted FTS5 search within a specific folder tree. With an empty query, lists recent notes.
+3. **`get_note(note_id)`** -- Retrieve the full note body, extracted PDF text, and inline images.
 
 This three-step flow lets the agent orient itself, find the right note, and then retrieve all content in a single call.
 
@@ -69,10 +69,6 @@ If FTS5 is unavailable (e.g., older SQLite build), the server automatically fall
 
 | Tool | Parameters | Description |
 |------|-----------|-------------|
-| `list_notes` | `sort_by="modified"`, `limit=50`, `folder=None` | List notes with metadata. Sort by `"modified"` (newest first) or `"title"` (A-Z). Filter by folder subtree. |
-| `search_notes` | `query`, `folder=None` | FTS5-backed multi-surface search across titles, snippets, filenames, summaries, OCR text, and URLs. |
-| `get_note` | `note_id` | Full plaintext body + attachment metadata list (no content extraction). |
-| `get_note_with_attachments` | `note_id`, `max_pages_per_pdf=50`, `include_images=True`, `max_image_size=1048576` | Full body + extracted PDF text + base64-encoded images. The primary tool for deep content retrieval. |
-| `get_note_with_pdfs` | _(same as above)_ | Backward-compatible alias for `get_note_with_attachments`. |
-| `list_attachments` | `note_id=None` | List all attachments with resolved file paths, existence checks, and file sizes. Filter to a single note with `note_id`. |
+| `search_notes` | `query=""`, `folder=None`, `sort_by="modified"`, `limit=50`, `ascending=False` | The primary discovery tool. With a query: FTS5-backed multi-surface search. With an empty query: lists recent notes sorted by modification date. |
+| `get_note` | `note_id`, `max_pages_per_pdf=50`, `include_images=True`, `max_image_size=1048576` | Full body + extracted PDF text + base64-encoded images. The primary tool for deep content retrieval. |
 | `list_folders` | _(none)_ | Folder tree with note counts per folder. Use to understand the folder hierarchy before searching. |

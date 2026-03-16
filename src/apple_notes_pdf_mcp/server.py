@@ -42,37 +42,6 @@ def _init_db():
 
 
 @mcp.tool()
-def list_notes(
-    folder: str | None = None,
-    sort_by: str = "modified",
-    limit: int = 50,
-) -> str:
-    """List all Apple Notes with basic metadata.
-
-    Args:
-        folder: Optional folder name to filter by (includes subfolders).
-        sort_by: Sort order — "modified" (newest first, default) or "title" (A-Z).
-        limit: Maximum number of notes to return (default 50).
-
-    Returns:
-        JSON array of note objects with id, title, folder, snippet,
-        modification_date, attachment_count, and note_url.
-    """
-    _init_db()
-    if _db_path and _account_col:
-        with notestore.open_notestore(_db_path) as tmp_db:
-            notes = notestore.list_notes_sql(
-                tmp_db, _account_col,
-                sort_by=sort_by, limit=limit, folder_name=folder,
-            )
-        return json.dumps(notes, indent=2)
-
-    # Fallback to JXA if DB not available
-    notes = applescript.list_notes(folder=folder)
-    return json.dumps(notes, indent=2)
-
-
-@mcp.tool()
 def list_folders() -> str:
     """List all Apple Notes folders as a tree with note counts.
 
@@ -106,23 +75,50 @@ def list_folders() -> str:
 
 
 @mcp.tool()
-def search_notes(query: str, folder: str | None = None) -> str:
-    """Search Apple Notes by title, body snippet, AND attachment filenames.
+def search_notes(
+    query: str = "",
+    folder: str | None = None,
+    sort_by: str = "modified",
+    limit: int = 50,
+    ascending: bool = False,
+) -> str:
+    """Search Apple Notes by title, body snippet, and attachment filenames.
 
-    This searches across multiple surfaces — it will find notes where the
-    query appears in the note title, body text, OR in the filename of any
-    attachment (e.g. a PDF named "blood test results.pdf"). Each result
-    includes a match_surface field indicating where the match was found.
+    The primary discovery tool. Supports both targeted search and browsing:
+    - With a query: FTS5 full-text search across titles, snippets, filenames,
+      summaries, OCR text, and URLs. Returns ranked results with match_surface.
+    - With an empty query: lists recent notes sorted by modification date
+      (like a "list all" mode). Use sort_by, limit, and ascending to control.
 
     Args:
-        query: The search string to look for.
-        folder: Optional folder name to scope the search to (includes subfolders).
+        query: Search string. Empty string returns recent notes (list mode).
+        folder: Optional folder name to scope the search (includes subfolders).
+        sort_by: Sort order for list mode -- "modified" (default).
+        limit: Maximum number of notes to return (default 50).
+        ascending: If True, sort oldest first. Default False (newest first).
 
     Returns:
-        JSON array of matching note objects with id, title, snippet,
-        modification_date, attachment_count, and match_surface.
+        JSON array of note objects with id, title, snippet,
+        modification_date, attachment_count, and note_url.
     """
     _init_db()
+
+    # Empty or very short query -> list mode (return recent notes)
+    if not query or len(query.strip()) < 2:
+        if _db_path and _account_col:
+            with notestore.open_notestore(_db_path) as tmp_db:
+                notes = notestore.list_notes_sql(
+                    tmp_db, _account_col,
+                    sort_by=sort_by, limit=limit, folder_name=folder,
+                    ascending=ascending,
+                )
+            return json.dumps(notes, indent=2)
+
+        # Fallback to JXA if DB not available
+        notes = applescript.list_notes(folder=folder)
+        return json.dumps(notes, indent=2)
+
+    # Non-empty query -> search mode
     if not _db_path or not _account_col:
         # Fall back to JXA search if DB not available
         results = applescript.search_notes(query)
@@ -130,53 +126,33 @@ def search_notes(query: str, folder: str | None = None) -> str:
 
     with notestore.open_notestore(_db_path) as tmp_db:
         try:
-            results = notestore.search_notes_fts(tmp_db, _account_col, query, folder_name=folder)
+            results = notestore.search_notes_fts(
+                tmp_db, _account_col, query, folder_name=folder, limit=limit,
+            )
         except Exception:
             logger.warning("FTS5 search failed, falling back to LIKE-based search", exc_info=True)
-            results = notestore.search_notes(tmp_db, _account_col, query, folder_name=folder)
+            results = notestore.search_notes(
+                tmp_db, _account_col, query, folder_name=folder, limit=limit,
+            )
 
     return json.dumps(results, indent=2)
 
 
 @mcp.tool()
-def get_note(note_id: str) -> str:
-    """Get a single note's full body text and attachment metadata list.
-
-    Args:
-        note_id: The x-coredata:// identifier from list_notes.
-
-    Returns:
-        JSON object with id, title, body, folder, modification_date,
-        and attachments array (name + type only, no content).
-    """
-    _init_db()
-    note = applescript.get_note(note_id)
-
-    # Add deep link URL
-    note_pk = _extract_note_pk(note_id)
-    if note_pk and _db_path:
-        with notestore.open_notestore(_db_path) as tmp_db:
-            identifier = notestore.get_note_identifier(tmp_db, note_pk)
-        if identifier:
-            note["note_url"] = f"applenotes://showNote?noteId={identifier}"
-
-    return json.dumps(note, indent=2)
-
-
-@mcp.tool(name="get_note_with_attachments")
-def get_note_with_attachments(
+def get_note(
     note_id: str,
     max_pages_per_pdf: int = 50,
     include_images: bool = True,
     max_image_size: int = 1_048_576,
 ) -> list[TextContent | ImageContent]:
-    """Get a note's full body text WITH extracted text from all embedded PDFs and images.
+    """Get a note's full body text with extracted PDF text and images.
 
-    This is the key tool: it returns note body text, PDF content, and image
-    attachments together so an LLM can reason over both the note and its attachments.
+    Returns the note body, extracted text from all embedded PDFs, and
+    base64-encoded image attachments so an LLM can reason over both
+    the note and its attachments in a single call.
 
     Args:
-        note_id: The x-coredata:// identifier from list_notes.
+        note_id: The x-coredata:// identifier from search_notes.
         max_pages_per_pdf: Max pages to extract per PDF (default 50).
         include_images: Whether to include base64-encoded image attachments (default True).
         max_image_size: Max image file size in bytes before resizing (default 1MB).
@@ -298,80 +274,6 @@ def get_note_with_attachments(
     result_blocks.extend(image_contents)
 
     return result_blocks
-
-
-@mcp.tool(name="get_note_with_pdfs")
-def get_note_with_pdfs(
-    note_id: str,
-    max_pages_per_pdf: int = 50,
-    include_images: bool = True,
-    max_image_size: int = 1_048_576,
-) -> list[TextContent | ImageContent]:
-    """Backward-compatible alias for get_note_with_attachments.
-
-    Args:
-        note_id: The x-coredata:// identifier from list_notes.
-        max_pages_per_pdf: Max pages to extract per PDF (default 50).
-        include_images: Whether to include base64-encoded image attachments (default True).
-        max_image_size: Max image file size in bytes before resizing (default 1MB).
-
-    Returns:
-        List of TextContent (JSON metadata) and ImageContent blocks for each image.
-    """
-    return get_note_with_attachments(
-        note_id=note_id,
-        max_pages_per_pdf=max_pages_per_pdf,
-        include_images=include_images,
-        max_image_size=max_image_size,
-    )
-
-
-@mcp.tool()
-def list_attachments(note_id: str | None = None) -> str:
-    """List all attachments across notes with resolved file paths.
-
-    Useful for seeing what's available before calling get_note_with_pdfs.
-
-    Args:
-        note_id: Optional x-coredata:// id to filter to a single note.
-
-    Returns:
-        JSON array of attachment objects with note_title, filename,
-        type, file_path, file_exists, and file_size_bytes.
-    """
-    _init_db()
-    if not _db_path or not _account_col:
-        return json.dumps([])
-
-    note_pk = _extract_note_pk(note_id) if note_id else None
-
-    with notestore.open_notestore(_db_path) as tmp_db:
-        rows = notestore.query_all_attachments(
-            tmp_db, _account_col, note_pk=note_pk
-        )
-
-    results = []
-    for row in rows:
-        file_path = notestore.resolve_media_path(
-            row["account_id"], row["media_uuid"], row["filename"]
-        )
-        file_exists = file_path is not None and os.path.exists(file_path)
-        file_size = os.path.getsize(file_path) if file_exists else None
-
-        note_identifier = row.get("note_identifier")
-        note_url = f"applenotes://showNote?noteId={note_identifier}" if note_identifier else None
-
-        results.append({
-            "note_title": row["note_title"],
-            "filename": row["filename"],
-            "type": row["uti"],
-            "file_path": file_path,
-            "file_exists": file_exists,
-            "file_size_bytes": file_size,
-            "note_url": note_url,
-        })
-
-    return json.dumps(results, indent=2)
 
 
 def main():

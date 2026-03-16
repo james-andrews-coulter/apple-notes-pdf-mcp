@@ -258,6 +258,7 @@ def search_notes(
     account_col: str,
     query: str,
     folder_name: str | None = None,
+    limit: int = 50,
 ) -> list[dict]:
     """Multi-surface search across note titles, snippets, and attachment filenames.
 
@@ -323,12 +324,14 @@ def search_notes(
         store_uuid = get_store_uuid(db_path)
         uuid_part = store_uuid if store_uuid else "unknown"
 
-        # Deduplicate and build results
+        # Deduplicate and build results (respecting limit)
         seen = set()
         results = []
         for r in [*title_hits, *attachment_hits]:
             if r[0] in seen:
                 continue
+            if len(results) >= limit:
+                break
             seen.add(r[0])
 
             # Count attachments for this note
@@ -372,15 +375,17 @@ def list_notes_sql(
     sort_by: str = "modified",
     limit: int = 50,
     folder_name: str | None = None,
+    ascending: bool = False,
 ) -> list[dict]:
     """List notes via SQLite with sorting and limit support.
 
     Args:
         db_path: Path to the (copied) NoteStore.sqlite.
         account_col: The ZACCOUNT column name for this macOS version.
-        sort_by: Sort order — "modified" (newest first) or "title" (A-Z).
+        sort_by: Sort order — "modified" (default).
         limit: Maximum number of notes to return.
         folder_name: Optional folder name to scope results (includes subfolders).
+        ascending: If True, sort oldest first. Default False (newest first).
 
     Returns:
         List of note dicts with id, title, folder, snippet,
@@ -397,12 +402,9 @@ def list_notes_sql(
             cte_sql, cte_params = _folder_subtree_cte(folder_name)
             folder_clause = " AND note.ZFOLDER IN (SELECT pk FROM subtree)"
 
-        # Sort mapping
-        sort_map = {
-            "modified": "note.ZMODIFICATIONDATE1 DESC NULLS LAST",
-            "title": "note.ZTITLE1 COLLATE NOCASE ASC",
-        }
-        order_clause = sort_map.get(sort_by, sort_map["modified"])
+        # Sort direction
+        direction = "ASC" if ascending else "DESC"
+        order_clause = f"note.ZMODIFICATIONDATE1 {direction} NULLS LAST"
 
         sql = cte_sql + f"""
             SELECT
@@ -508,6 +510,7 @@ def search_notes_fts(
     account_col: str,
     query: str,
     folder_name: str | None = None,
+    limit: int = 50,
 ) -> list[dict]:
     """Full-text search using FTS5 with Porter stemming and ranking.
 
@@ -523,8 +526,8 @@ def search_notes_fts(
 
         # Get ranked FTS5 results
         fts_rows = conn.execute(
-            "SELECT rowid, rank FROM notes_fts WHERE notes_fts MATCH ? ORDER BY rank LIMIT 50",
-            (fts_query,),
+            "SELECT rowid, rank FROM notes_fts WHERE notes_fts MATCH ? ORDER BY rank LIMIT ?",
+            (fts_query, limit),
         ).fetchall()
 
         if not fts_rows:

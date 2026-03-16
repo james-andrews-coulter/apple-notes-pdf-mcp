@@ -11,7 +11,7 @@ uv run pytest tests/ -v      # run tests
 
 `src/apple_notes_pdf_mcp/` contains five modules:
 
-- **server.py** -- MCP server (FastMCP) exposing 7 read-only tools to LLMs
+- **server.py** -- MCP server (FastMCP) exposing 3 read-only tools to LLMs
 - **applescript.py** -- JXA (JavaScript for Automation) via `osascript` for Notes.app access
 - **notestore.py** -- SQLite queries + FTS5 full-text search against `NoteStore.sqlite` for note metadata, attachment paths, folder trees, and deep links via ZIDENTIFIER
 - **pdf_extract.py** -- PDF text extraction using `pdfplumber`

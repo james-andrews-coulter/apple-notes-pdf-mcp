@@ -48,12 +48,8 @@ The server communicates over stdio using the [Model Context Protocol](https://mo
 
 | Tool | Description |
 |------|-------------|
-| `list_notes` | List notes with title, folder, snippet, modification date, attachment count, and `note_url`. Supports `sort_by` (`"modified"` or `"title"`), `limit` (default 50), and `folder` filter (includes subfolders). |
-| `search_notes` | FTS5 full-text search across note titles, body snippets, attachment filenames, summaries, OCR text, and URLs. Supports `folder` parameter for scoped search. Returns `match_surface` indicating where the hit was found. |
-| `get_note` | Get a single note's full plaintext body, attachment metadata list, and `note_url` deep link. |
-| `get_note_with_attachments` | **The key tool.** Returns note body text + extracted PDF text + base64-encoded images, merged into a single response. Supports `max_pages_per_pdf` (default 50), `include_images` (default True), `max_image_size` (default 1MB), and a 500KB total text limit. |
-| `get_note_with_pdfs` | Backward-compatible alias for `get_note_with_attachments`. |
-| `list_attachments` | List all attachments with resolved file paths, existence checks, file sizes, and `note_url`. Optional `note_id` filter. |
+| `search_notes` | The primary discovery tool. With a query: FTS5 full-text search across titles, snippets, filenames, summaries, OCR text, and URLs. With an empty query: lists recent notes (like "list all"). Supports `folder`, `sort_by`, `limit` (default 50), and `ascending` params. |
+| `get_note` | Get a note's full body text + extracted PDF text + base64-encoded images in one call. Supports `max_pages_per_pdf` (default 50), `include_images` (default True), `max_image_size` (default 1MB), and a 500KB total text limit. |
 | `list_folders` | List all folders as a tree with note counts per folder. Use to understand folder hierarchy before searching. |
 
 ## Example
@@ -66,7 +62,7 @@ Claude: I'll search your notes for blood test results.
    Found "Followup Blood Test" (matched via fts5)
    note_url: applenotes://showNote?noteId=ABC123-DEF456
 
--> get_note_with_attachments("x-coredata://.../ICNote/p11734")
+-> get_note("x-coredata://.../ICNote/p11734")
    Extracted text from "iron ferritin blood test results.pdf"
    Encoded 1 image attachment
 
@@ -111,14 +107,9 @@ The first time the server runs, macOS will prompt you to allow your terminal to 
 |  apple-notes-pdf-mcp                      |
 |                                           |
 |  Tools:                                   |
-|  +- list_notes           (SQLite / JXA)   |
-|  +- list_folders         (SQLite)         |
 |  +- search_notes         (FTS5 / SQLite)  |
-|  +- get_note             (JXA)            |
-|  +- get_note_with_attachments             |
-|  |                       (JXA + SQLite)   |
-|  +- get_note_with_pdfs   (alias)          |
-|  +- list_attachments     (SQLite)         |
+|  +- get_note             (JXA + SQLite)   |
+|  +- list_folders         (SQLite)         |
 |                                           |
 |  Internal modules:                        |
 |  +- applescript.py   -> JXA wrappers      |
