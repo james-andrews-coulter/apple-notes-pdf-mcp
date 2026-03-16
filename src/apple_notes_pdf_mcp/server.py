@@ -23,7 +23,7 @@ def _extract_note_pk(note_id: str) -> int | None:
 
 mcp = FastMCP("apple-notes-pdf")
 
-# Resolve account column and DB path at startup
+# Resolve account column, store UUID, and DB path at startup
 _db_path: str | None = None
 _account_col: str | None = None
 
@@ -61,15 +61,32 @@ def list_notes(folder: str | None = None) -> str:
 
 @mcp.tool()
 def search_notes(query: str) -> str:
-    """Full-text search across Apple Notes bodies. Case-insensitive.
+    """Search Apple Notes by title, body snippet, AND attachment filenames.
+
+    This searches across multiple surfaces — it will find notes where the
+    query appears in the note title, body text, OR in the filename of any
+    attachment (e.g. a PDF named "blood test results.pdf"). Each result
+    includes a match_surface field indicating where the match was found.
 
     Args:
-        query: The search string to look for in note bodies.
+        query: The search string to look for.
 
     Returns:
-        JSON array of matching note objects (same schema as list_notes).
+        JSON array of matching note objects with id, title, snippet,
+        modification_date, attachment_count, and match_surface.
     """
-    results = applescript.search_notes(query)
+    _init_db()
+    if not _db_path or not _account_col:
+        # Fall back to JXA search if DB not available
+        results = applescript.search_notes(query)
+        return json.dumps(results, indent=2)
+
+    tmp_db, tmp_dir = notestore._copy_db_to_temp(_db_path)
+    try:
+        results = notestore.search_notes(tmp_db, _account_col, query)
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
     return json.dumps(results, indent=2)
 
 

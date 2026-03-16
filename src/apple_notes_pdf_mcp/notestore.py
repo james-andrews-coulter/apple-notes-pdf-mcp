@@ -32,6 +32,20 @@ def _copy_db_to_temp(db_path: str) -> tuple[str, str]:
     return dest, tmp_dir
 
 
+def get_store_uuid(db_path: str) -> str | None:
+    """Get the Core Data store UUID from Z_METADATA."""
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    try:
+        row = conn.execute(
+            "SELECT Z_UUID FROM Z_METADATA LIMIT 1"
+        ).fetchone()
+        return row[0] if row else None
+    except sqlite3.OperationalError:
+        return None
+    finally:
+        conn.close()
+
+
 def find_account_column(db_path: str) -> str:
     """Probe ZICCLOUDSYNCINGOBJECT to find the correct ZACCOUNT column.
 
@@ -162,6 +176,100 @@ def query_all_attachments(
             }
             for r in rows
         ]
+    finally:
+        conn.close()
+
+
+def search_notes(
+    db_path: str,
+    account_col: str,
+    query: str,
+) -> list[dict]:
+    """Multi-surface search across note titles, snippets, and attachment filenames.
+
+    This is far more powerful than AppleScript search which can only hit body
+    plaintext. This searches ZTITLE1 (note title), ZSNIPPET (body preview),
+    and ZFILENAME (attachment filenames) — finding notes where the search term
+    appears in any of these surfaces.
+    """
+    if not (account_col.startswith("ZACCOUNT") and account_col[8:].isdigit()):
+        raise ValueError(f"Invalid account column: {account_col}")
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    try:
+        like_query = f"%{query}%"
+
+        # Search note titles and snippets directly
+        title_hits = conn.execute(
+            f"""
+            SELECT DISTINCT
+                note.Z_PK          AS note_pk,
+                note.ZTITLE1       AS title,
+                note.ZSNIPPET      AS snippet,
+                note.ZMODIFICATIONDATE1 AS mod_date
+            FROM ZICCLOUDSYNCINGOBJECT note
+            WHERE note.ZTITLE1 IS NOT NULL
+              AND (
+                  note.ZTITLE1 LIKE ? COLLATE NOCASE
+                  OR note.ZSNIPPET LIKE ? COLLATE NOCASE
+              )
+            """,
+            (like_query, like_query),
+        ).fetchall()
+
+        # Search attachment filenames and resolve back to parent notes
+        attachment_hits = conn.execute(
+            f"""
+            SELECT DISTINCT
+                note.Z_PK          AS note_pk,
+                note.ZTITLE1       AS title,
+                note.ZSNIPPET      AS snippet,
+                note.ZMODIFICATIONDATE1 AS mod_date
+            FROM ZICCLOUDSYNCINGOBJECT media
+            JOIN ZICCLOUDSYNCINGOBJECT att  ON att.ZMEDIA = media.Z_PK
+            JOIN ZICCLOUDSYNCINGOBJECT note ON note.Z_PK  = att.ZNOTE
+            WHERE media.ZFILENAME LIKE ? COLLATE NOCASE
+              AND note.ZTITLE1 IS NOT NULL
+            """,
+            (like_query,),
+        ).fetchall()
+
+        # Deduplicate and build results
+        seen = set()
+        results = []
+        for r in [*title_hits, *attachment_hits]:
+            if r[0] in seen:
+                continue
+            seen.add(r[0])
+
+            # Count attachments for this note
+            att_count = conn.execute(
+                "SELECT COUNT(*) FROM ZICCLOUDSYNCINGOBJECT WHERE ZNOTE = ? AND ZTYPEUTI IS NOT NULL",
+                (r[0],),
+            ).fetchone()[0]
+
+            # Convert Core Data timestamp to ISO (Core Data epoch is 2001-01-01)
+            mod_date_str = None
+            if r[3] is not None:
+                import datetime
+                cd_epoch = datetime.datetime(2001, 1, 1, tzinfo=datetime.timezone.utc)
+                mod_date = cd_epoch + datetime.timedelta(seconds=r[3])
+                mod_date_str = mod_date.isoformat()
+
+            # Build the x-coredata ID using real store UUID
+            store_uuid = get_store_uuid(db_path)
+            uuid_part = store_uuid if store_uuid else "unknown"
+            note_id = f"x-coredata://{uuid_part}/ICNote/p{r[0]}"
+
+            results.append({
+                "id": note_id,
+                "title": r[1] or "",
+                "snippet": (r[2] or "")[:200],
+                "modification_date": mod_date_str,
+                "attachment_count": att_count,
+                "match_surface": "title/snippet" if r in title_hits else "attachment_filename",
+            })
+
+        return results
     finally:
         conn.close()
 
