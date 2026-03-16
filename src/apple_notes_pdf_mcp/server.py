@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import logging
+import re
 import shutil
 
 from mcp.server.fastmcp import FastMCP
@@ -12,6 +13,13 @@ from mcp.server.fastmcp import FastMCP
 from . import applescript, notestore, pdf_extract
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_note_pk(note_id: str) -> int | None:
+    """Extract Z_PK from a note ID like x-coredata://UUID/ICNote/p123."""
+    match = re.search(r'/p(\d+)$', note_id)
+    return int(match.group(1)) if match else None
+
 
 mcp = FastMCP("apple-notes-pdf")
 
@@ -102,12 +110,7 @@ def get_note_with_pdfs(note_id: str, max_pages_per_pdf: int = 50) -> str:
 
     # Get note's Z_PK from the note_id
     # The note_id is like x-coredata://UUID/ICNote/pNNN where NNN is the Z_PK
-    note_pk = None
-    if "/p" in note_id:
-        try:
-            note_pk = int(note_id.split("/p")[-1])
-        except ValueError:
-            pass
+    note_pk = _extract_note_pk(note_id)
 
     pdf_attachments = []
     other_attachments = []
@@ -193,12 +196,7 @@ def list_attachments(note_id: str | None = None) -> str:
     if not _db_path or not _account_col:
         return json.dumps([])
 
-    note_pk = None
-    if note_id and "/p" in note_id:
-        try:
-            note_pk = int(note_id.split("/p")[-1])
-        except ValueError:
-            pass
+    note_pk = _extract_note_pk(note_id) if note_id else None
 
     tmp_db, tmp_dir = notestore._copy_db_to_temp(_db_path)
     try:

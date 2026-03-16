@@ -79,6 +79,8 @@ def query_pdf_attachments(
     note_pk: int,
 ) -> list[dict]:
     """Query PDF attachments for a specific note."""
+    if not (account_col.startswith("ZACCOUNT") and account_col[8:].isdigit()):
+        raise ValueError(f"Invalid account column: {account_col}")
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     try:
         rows = conn.execute(
@@ -121,6 +123,8 @@ def query_all_attachments(
     note_pk: int | None = None,
 ) -> list[dict]:
     """Query all attachments, optionally filtered to a note."""
+    if not (account_col.startswith("ZACCOUNT") and account_col[8:].isdigit()):
+        raise ValueError(f"Invalid account column: {account_col}")
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     try:
         where = "WHERE att.ZTYPEUTI IS NOT NULL"

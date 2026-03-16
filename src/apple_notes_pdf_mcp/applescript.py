@@ -6,19 +6,6 @@ import json
 import subprocess
 
 
-def _run_applescript(script: str) -> str:
-    """Run an AppleScript via osascript and return stdout."""
-    result = subprocess.run(
-        ["osascript", "-e", script],
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"AppleScript error: {result.stderr}")
-    return result.stdout.strip()
-
-
 def _run_jxa(script: str) -> str:
     """Run a JXA (JavaScript for Automation) script and return stdout."""
     result = subprocess.run(
