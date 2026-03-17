@@ -187,7 +187,7 @@ def get_note(
             )
             identifier = notestore.get_note_identifier(tmp_db, note_pk)
             if identifier:
-                note_url = f"applenotes://showNote?noteId={identifier}"
+                note_url = f"https://james-andrews-coulter.github.io/notes-link/?id={identifier}"
 
         # Extract text from each PDF
         total_text_size = 0

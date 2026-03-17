@@ -352,7 +352,7 @@ def search_notes(
 
             # Build deep link URL from ZIDENTIFIER
             identifier = r[4]
-            note_url = f"applenotes://showNote?noteId={identifier}" if identifier else None
+            note_url = f"https://james-andrews-coulter.github.io/notes-link/?id={identifier}" if identifier else None
 
             title = r[1] or ""
             citation = f"[{title}]({note_url})" if note_url else title
@@ -445,7 +445,7 @@ def list_notes_sql(
                 mod_date_str = (cd_epoch + datetime.timedelta(seconds=mod_date)).isoformat()
 
             note_id = f"x-coredata://{uuid_part}/ICNote/p{pk}"
-            note_url = f"applenotes://showNote?noteId={identifier}" if identifier else None
+            note_url = f"https://james-andrews-coulter.github.io/notes-link/?id={identifier}" if identifier else None
 
             display_title = title or ""
             citation = f"[{display_title}]({note_url})" if note_url else display_title
@@ -595,7 +595,7 @@ def search_notes_fts(
                 mod_date_str = (cd_epoch + datetime.timedelta(seconds=mod_date)).isoformat()
 
             note_id = f"x-coredata://{uuid_part}/ICNote/p{pk}"
-            note_url = f"applenotes://showNote?noteId={identifier}" if identifier else None
+            note_url = f"https://james-andrews-coulter.github.io/notes-link/?id={identifier}" if identifier else None
 
             display_title = title or ""
             citation = f"[{display_title}]({note_url})" if note_url else display_title
