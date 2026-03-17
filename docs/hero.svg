@@ -1,0 +1,273 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <radialGradient id="bgGrad" cx="30%" cy="0%" r="120%">
+      <stop offset="0%" stop-color="#0f1729"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </radialGradient>
+    <linearGradient id="titleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#94a3b8"/>
+    </linearGradient>
+    <linearGradient id="notesHeaderGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fde68a"/>
+      <stop offset="100%" stop-color="#fbbf24"/>
+    </linearGradient>
+    <linearGradient id="mcpHeaderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a5f"/>
+      <stop offset="100%" stop-color="#0c1a2e"/>
+    </linearGradient>
+    <linearGradient id="agentHeaderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5b21b6"/>
+      <stop offset="100%" stop-color="#3b0764"/>
+    </linearGradient>
+    <linearGradient id="glowLine" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#a78bfa" stop-opacity="0"/>
+      <stop offset="30%" stop-color="#a78bfa" stop-opacity="0.4"/>
+      <stop offset="70%" stop-color="#38bdf8" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+    </linearGradient>
+
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-opacity="0.45" flood-color="#000"/>
+    </filter>
+    <filter id="glowPurple" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <marker id="arrowYellow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse">
+      <path d="M 0 0 L 8 4 L 0 8 Z" fill="#eab308" opacity="0.9"/>
+    </marker>
+    <marker id="arrowBlue" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse">
+      <path d="M 0 0 L 8 4 L 0 8 Z" fill="#38bdf8" opacity="0.9"/>
+    </marker>
+    <marker id="arrowPurple" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse">
+      <path d="M 0 0 L 8 4 L 0 8 Z" fill="#a78bfa" opacity="0.9"/>
+    </marker>
+    <marker id="arrowEmerald" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse">
+      <path d="M 0 0 L 8 4 L 0 8 Z" fill="#34d399" opacity="0.9"/>
+    </marker>
+
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M 48 0 L 0 0 0 48" fill="none" stroke="#ffffff" stroke-opacity="0.018" stroke-width="1"/>
+    </pattern>
+    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="12" cy="12" r="0.7" fill="#ffffff" opacity="0.04"/>
+    </pattern>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGrad)"/>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+  <rect width="1200" height="630" fill="url(#dots)"/>
+
+  <!-- Ambient glows -->
+  <ellipse cx="600" cy="420" rx="340" ry="180" fill="#38bdf8" opacity="0.015"/>
+  <ellipse cx="600" cy="420" rx="200" ry="120" fill="#a78bfa" opacity="0.02"/>
+
+  <!-- Decorative top line -->
+  <rect x="300" y="160" width="600" height="1.5" fill="url(#glowLine)" rx="1"/>
+
+  <!-- Title -->
+  <text x="600" y="96" font-family="'SF Pro Display', 'Helvetica Neue', system-ui, -apple-system, sans-serif" font-size="52" font-weight="800" fill="url(#titleGrad)" text-anchor="middle" letter-spacing="-2">Apple Notes Search MCP</text>
+
+  <!-- Subtitle -->
+  <text x="600" y="138" font-family="'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif" font-size="20" font-weight="400" fill="#64748b" text-anchor="middle" letter-spacing="0.5">Connect your Agent to your Apple Notes second-brain</text>
+
+  <!-- Feature Badges Row -->
+  <!-- 1. Attachment Parsing -->
+  <g transform="translate(280, 195)">
+    <rect x="-110" y="-16" width="220" height="32" rx="16" fill="rgba(52, 211, 153, 0.08)" stroke="#34d399" stroke-width="1" stroke-opacity="0.5"/>
+    <circle cx="-82" cy="0" r="4" fill="#34d399" opacity="0.7"/>
+    <text x="8" y="5" font-family="'SF Mono', 'Fira Code', monospace" font-size="12" font-weight="600" fill="#34d399" text-anchor="middle" opacity="0.9">Attachment Parsing</text>
+  </g>
+  <!-- 2. FTS5 Full-Text Search -->
+  <g transform="translate(560, 195)">
+    <rect x="-110" y="-16" width="220" height="32" rx="16" fill="rgba(56, 189, 248, 0.08)" stroke="#38bdf8" stroke-width="1" stroke-opacity="0.5"/>
+    <circle cx="-82" cy="0" r="4" fill="#38bdf8" opacity="0.7"/>
+    <text x="8" y="5" font-family="'SF Mono', 'Fira Code', monospace" font-size="12" font-weight="600" fill="#38bdf8" text-anchor="middle" opacity="0.9">FTS5 Full-Text Search</text>
+  </g>
+  <!-- 3. Linked Citations -->
+  <g transform="translate(840, 195)">
+    <rect x="-100" y="-16" width="200" height="32" rx="16" fill="rgba(167, 139, 250, 0.08)" stroke="#a78bfa" stroke-width="1" stroke-opacity="0.5"/>
+    <circle cx="-72" cy="0" r="4" fill="#a78bfa" opacity="0.7"/>
+    <text x="8" y="5" font-family="'SF Mono', 'Fira Code', monospace" font-size="12" font-weight="600" fill="#a78bfa" text-anchor="middle" opacity="0.9">Linked Citations</text>
+  </g>
+
+  <!-- Decorative line below badges -->
+  <rect x="300" y="224" width="600" height="1" fill="url(#glowLine)" rx="0.5" opacity="0.5"/>
+
+
+  <!-- ============================== -->
+  <!-- CARD 1 (LEFT): LLM Agent       -->
+  <!-- ============================== -->
+  <g filter="url(#shadow)">
+    <rect x="60" y="270" width="270" height="300" rx="14" fill="#0a0f1e" stroke="#7c3aed" stroke-width="1.5" filter="url(#glowPurple)"/>
+    <path d="M 60 284 A 14 14 0 0 1 74 270 L 316 270 A 14 14 0 0 1 330 284 L 330 314 L 60 314 Z" fill="url(#agentHeaderGrad)"/>
+    <text x="195" y="298" font-family="'SF Pro Text', system-ui, sans-serif" font-size="14" font-weight="700" fill="#ddd6fe" text-anchor="middle">LLM Agent</text>
+
+    <!-- User prompt bubble -->
+    <rect x="80" y="328" width="230" height="32" rx="8" fill="#1e293b"/>
+    <text x="95" y="349" font-family="'SF Pro Text', system-ui, sans-serif" font-size="11.5" font-weight="500" fill="#94a3b8">"Summarize my health notes"</text>
+
+    <!-- Tool call 1 -->
+    <rect x="80" y="370" width="145" height="24" rx="6" fill="rgba(56,189,248,0.1)" stroke="#38bdf8" stroke-width="1" stroke-opacity="0.5"/>
+    <text x="90" y="386" font-family="'SF Mono', monospace" font-size="10" font-weight="600" fill="#38bdf8">→ search_notes()</text>
+
+    <!-- Tool call 2 -->
+    <rect x="80" y="402" width="175" height="24" rx="6" fill="rgba(52,211,153,0.1)" stroke="#34d399" stroke-width="1" stroke-opacity="0.5"/>
+    <text x="90" y="418" font-family="'SF Mono', monospace" font-size="10" font-weight="600" fill="#34d399">→ get_note() × 3 results</text>
+
+    <!-- Agent response with multi-source synthesis -->
+    <rect x="80" y="436" width="230" height="114" rx="8" fill="#1a0a3e"/>
+    <text x="95" y="458" font-family="'SF Pro Text', system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#e2e8f0">Your ferritin was 27 µg/L</text>
+    <!-- Citation 1 -->
+    <rect x="247" y="446" width="22" height="15" rx="4" fill="#7c3aed" filter="url(#softGlow)"/>
+    <text x="258" y="457" font-family="'SF Mono', monospace" font-size="9" font-weight="700" fill="#fff" text-anchor="middle">[1]</text>
+
+    <text x="95" y="478" font-family="'SF Pro Text', system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#e2e8f0">Dr. Kim noted follow-up in</text>
+    <text x="95" y="496" font-family="'SF Pro Text', system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#e2e8f0">4 weeks.</text>
+    <!-- Citation 2 -->
+    <rect x="147" y="484" width="22" height="15" rx="4" fill="#7c3aed" filter="url(#softGlow)"/>
+    <text x="158" y="495" font-family="'SF Mono', monospace" font-size="9" font-weight="700" fill="#fff" text-anchor="middle">[2]</text>
+
+    <text x="95" y="516" font-family="'SF Pro Text', system-ui, sans-serif" font-size="11.5" font-weight="400" fill="#e2e8f0">Vitamin D also flagged low.</text>
+    <!-- Citation 3 -->
+    <rect x="270" y="504" width="22" height="15" rx="4" fill="#7c3aed" filter="url(#softGlow)"/>
+    <text x="281" y="515" font-family="'SF Mono', monospace" font-size="9" font-weight="700" fill="#fff" text-anchor="middle">[3]</text>
+
+    <text x="95" y="540" font-family="'SF Pro Text', system-ui, sans-serif" font-size="10" font-weight="500" fill="#6b7280" font-style="italic">3 notes · 2 PDFs · 1 image synthesized</text>
+  </g>
+
+
+  <!-- ============================== -->
+  <!-- CARD 2 (CENTER): MCP Server    -->
+  <!-- ============================== -->
+  <g filter="url(#shadow)">
+    <rect x="430" y="270" width="280" height="300" rx="14" fill="#0a0f1e" stroke="#1e293b" stroke-width="2"/>
+    <path d="M 430 284 A 14 14 0 0 1 444 270 L 696 270 A 14 14 0 0 1 710 284 L 710 314 L 430 314 Z" fill="url(#mcpHeaderGrad)"/>
+    <text x="570" y="298" font-family="'SF Mono', 'Fira Code', monospace" font-size="14" font-weight="700" fill="#38bdf8" text-anchor="middle">MCP Server</text>
+
+    <!-- Tool 1: search_notes -->
+    <rect x="450" y="330" width="240" height="52" rx="8" fill="#0f172a" stroke="#38bdf8" stroke-width="1" stroke-opacity="0.4"/>
+    <text x="470" y="349" font-family="'SF Mono', monospace" font-size="11" font-weight="600" fill="#38bdf8" opacity="0.7">fn</text>
+    <text x="490" y="349" font-family="'SF Mono', monospace" font-size="11" font-weight="600" fill="#e0f2fe">search_notes()</text>
+    <text x="470" y="365" font-family="'SF Pro Text', system-ui, sans-serif" font-size="9.5" fill="#475569">FTS5 across titles · snippets · filenames</text>
+    <text x="470" y="377" font-family="'SF Pro Text', system-ui, sans-serif" font-size="9.5" fill="#475569">summaries · OCR text · URLs</text>
+
+    <!-- Tool 2: get_note -->
+    <rect x="450" y="394" width="240" height="52" rx="8" fill="#0f172a" stroke="#34d399" stroke-width="1" stroke-opacity="0.4"/>
+    <text x="470" y="413" font-family="'SF Mono', monospace" font-size="11" font-weight="600" fill="#34d399" opacity="0.7">fn</text>
+    <text x="490" y="413" font-family="'SF Mono', monospace" font-size="11" font-weight="600" fill="#d1fae5">get_note()</text>
+    <text x="470" y="429" font-family="'SF Pro Text', system-ui, sans-serif" font-size="9.5" fill="#475569">body + extracted PDF text + base64 images</text>
+    <text x="470" y="441" font-family="'SF Pro Text', system-ui, sans-serif" font-size="9.5" fill="#475569">pdfplumber · 500KB limit · page control</text>
+
+    <!-- Tool 3: list_folders -->
+    <rect x="450" y="458" width="240" height="44" rx="8" fill="#0f172a" stroke="#a78bfa" stroke-width="1" stroke-opacity="0.4"/>
+    <text x="470" y="477" font-family="'SF Mono', monospace" font-size="11" font-weight="600" fill="#a78bfa" opacity="0.7">fn</text>
+    <text x="490" y="477" font-family="'SF Mono', monospace" font-size="11" font-weight="600" fill="#ede9fe">list_folders()</text>
+    <text x="470" y="493" font-family="'SF Pro Text', system-ui, sans-serif" font-size="9.5" fill="#475569">folder tree · note counts · hierarchy</text>
+
+    <!-- Access method badges -->
+    <rect x="450" y="520" width="90" height="24" rx="6" fill="rgba(234, 179, 8, 0.1)" stroke="#eab308" stroke-width="0.8" stroke-opacity="0.5"/>
+    <text x="495" y="536" font-family="'SF Mono', monospace" font-size="9" font-weight="600" fill="#eab308" text-anchor="middle">JXA + SQLite</text>
+    <rect x="550" y="520" width="80" height="24" rx="6" fill="rgba(52, 211, 153, 0.1)" stroke="#34d399" stroke-width="0.8" stroke-opacity="0.5"/>
+    <text x="590" y="536" font-family="'SF Mono', monospace" font-size="9" font-weight="600" fill="#34d399" text-anchor="middle">pdfplumber</text>
+    <rect x="640" y="520" width="50" height="24" rx="6" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="0.8" stroke-opacity="0.5"/>
+    <text x="665" y="536" font-family="'SF Mono', monospace" font-size="9" font-weight="600" fill="#a78bfa" text-anchor="middle">FTS5</text>
+  </g>
+
+
+  <!-- ====================================== -->
+  <!-- CARD 3 (RIGHT): Apple Notes + Results  -->
+  <!-- ====================================== -->
+  <g filter="url(#shadow)">
+    <rect x="810" y="270" width="330" height="300" rx="14" fill="#ffffff"/>
+    <!-- Header bar with macOS chrome -->
+    <path d="M 810 284 A 14 14 0 0 1 824 270 L 1126 270 A 14 14 0 0 1 1140 284 L 1140 314 L 810 314 Z" fill="url(#notesHeaderGrad)"/>
+    <circle cx="830" cy="292" r="5" fill="#f87171" opacity="0.8"/>
+    <circle cx="846" cy="292" r="5" fill="#fbbf24" opacity="0.8"/>
+    <circle cx="862" cy="292" r="5" fill="#34d399" opacity="0.8"/>
+    <text x="975" y="298" font-family="'SF Pro Text', system-ui, sans-serif" font-size="14" font-weight="700" fill="#78350f" text-anchor="middle">Apple Notes</text>
+
+    <!-- FOLDER TREE sidebar -->
+    <rect x="822" y="326" width="96" height="230" rx="6" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+    <text x="834" y="345" font-family="'SF Pro Text', system-ui, sans-serif" font-size="9" font-weight="700" fill="#475569" letter-spacing="0.5">FOLDERS</text>
+    <text x="834" y="364" font-family="'SF Pro Text', system-ui, sans-serif" font-size="10" font-weight="600" fill="#1e293b">📁 Projects</text>
+    <text x="904" y="364" font-family="'SF Mono', monospace" font-size="8" font-weight="600" fill="#94a3b8">12</text>
+    <text x="834" y="383" font-family="'SF Pro Text', system-ui, sans-serif" font-size="10" font-weight="600" fill="#1e293b">📁 Areas</text>
+    <text x="904" y="383" font-family="'SF Mono', monospace" font-size="8" font-weight="600" fill="#94a3b8">8</text>
+    <!-- Health subfolder highlighted -->
+    <rect x="826" y="390" width="88" height="18" rx="4" fill="#dbeafe"/>
+    <text x="842" y="403" font-family="'SF Pro Text', system-ui, sans-serif" font-size="9.5" font-weight="600" fill="#1d4ed8">🏥 Health</text>
+    <text x="834" y="422" font-family="'SF Pro Text', system-ui, sans-serif" font-size="10" font-weight="600" fill="#1e293b">📁 Resources</text>
+    <text x="904" y="422" font-family="'SF Mono', monospace" font-size="8" font-weight="600" fill="#94a3b8">24</text>
+    <text x="834" y="441" font-family="'SF Pro Text', system-ui, sans-serif" font-size="10" font-weight="600" fill="#1e293b">📁 Archive</text>
+    <text x="904" y="441" font-family="'SF Mono', monospace" font-size="8" font-weight="600" fill="#94a3b8">6</text>
+
+    <!-- SEARCH RESULTS area -->
+    <!-- Result 1: Note with PDF -->
+    <rect x="926" y="326" width="202" height="68" rx="8" fill="#fefce8" stroke="#fde68a" stroke-width="1"/>
+    <text x="938" y="342" font-family="'SF Pro Text', system-ui, sans-serif" font-size="10" font-weight="700" fill="#1e293b">Blood Test Results</text>
+    <text x="938" y="356" font-family="'SF Pro Text', system-ui, sans-serif" font-size="9" fill="#64748b">Health · Mar 2026 · matched: title</text>
+    <rect x="938" y="364" width="82" height="20" rx="4" fill="#fef2f2" stroke="#fca5a5" stroke-width="1"/>
+    <rect x="942" y="367" width="16" height="14" rx="2" fill="#ef4444"/>
+    <text x="950" y="377" font-family="'SF Pro Text', system-ui, sans-serif" font-size="7" font-weight="800" fill="#fff" text-anchor="middle">PDF</text>
+    <text x="964" y="378" font-family="'SF Mono', monospace" font-size="8" font-weight="500" fill="#b91c1c">iron_panel.pdf</text>
+    <rect x="1098" y="330" width="20" height="14" rx="3" fill="#7c3aed"/>
+    <text x="1108" y="340" font-family="'SF Mono', monospace" font-size="8" font-weight="700" fill="#fff" text-anchor="middle">[1]</text>
+
+    <!-- Result 2: Note with image -->
+    <rect x="926" y="402" width="202" height="68" rx="8" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1"/>
+    <text x="938" y="418" font-family="'SF Pro Text', system-ui, sans-serif" font-size="10" font-weight="700" fill="#1e293b">Dr. Kim Follow-Up</text>
+    <text x="938" y="432" font-family="'SF Pro Text', system-ui, sans-serif" font-size="9" fill="#64748b">Health · Feb 2026 · matched: body</text>
+    <rect x="938" y="440" width="90" height="20" rx="4" fill="#eff6ff" stroke="#93c5fd" stroke-width="1"/>
+    <rect x="942" y="443" width="16" height="14" rx="2" fill="#3b82f6"/>
+    <text x="950" y="453" font-family="'SF Pro Text', system-ui, sans-serif" font-size="7" font-weight="800" fill="#fff" text-anchor="middle">IMG</text>
+    <text x="964" y="454" font-family="'SF Mono', monospace" font-size="8" font-weight="500" fill="#1d4ed8">scan_notes.jpg</text>
+    <rect x="1098" y="406" width="20" height="14" rx="3" fill="#7c3aed"/>
+    <text x="1108" y="416" font-family="'SF Mono', monospace" font-size="8" font-weight="700" fill="#fff" text-anchor="middle">[2]</text>
+
+    <!-- Result 3: Note with PDF -->
+    <rect x="926" y="478" width="202" height="68" rx="8" fill="#fef2f2" stroke="#fecdd3" stroke-width="1"/>
+    <text x="938" y="494" font-family="'SF Pro Text', system-ui, sans-serif" font-size="10" font-weight="700" fill="#1e293b">Vitamin D Recheck</text>
+    <text x="938" y="508" font-family="'SF Pro Text', system-ui, sans-serif" font-size="9" fill="#64748b">Health · Jan 2026 · matched: PDF</text>
+    <rect x="938" y="516" width="86" height="20" rx="4" fill="#fef2f2" stroke="#fca5a5" stroke-width="1"/>
+    <rect x="942" y="519" width="16" height="14" rx="2" fill="#ef4444"/>
+    <text x="950" y="529" font-family="'SF Pro Text', system-ui, sans-serif" font-size="7" font-weight="800" fill="#fff" text-anchor="middle">PDF</text>
+    <text x="964" y="530" font-family="'SF Mono', monospace" font-size="8" font-weight="500" fill="#b91c1c">vit_d_labs.pdf</text>
+    <rect x="1098" y="482" width="20" height="14" rx="3" fill="#7c3aed"/>
+    <text x="1108" y="492" font-family="'SF Mono', monospace" font-size="8" font-weight="700" fill="#fff" text-anchor="middle">[3]</text>
+  </g>
+
+
+  <!-- ========================= -->
+  <!-- CONNECTING FLOW ARROWS    -->
+  <!-- ========================= -->
+
+  <!-- Agent → MCP: Tool call -->
+  <path d="M 345 370 L 415 370" stroke="#38bdf8" stroke-width="2.5" stroke-dasharray="5,4" marker-end="url(#arrowBlue)" opacity="0.8"/>
+  <text x="380" y="362" font-family="'SF Mono', monospace" font-size="9.5" font-weight="600" fill="#38bdf8" text-anchor="middle" opacity="0.9">Tool Call</text>
+
+  <!-- MCP → Agent: Context + citations -->
+  <path d="M 415 430 L 345 430" stroke="#a78bfa" stroke-width="2.5" marker-end="url(#arrowPurple)" opacity="0.8"/>
+  <text x="380" y="448" font-family="'SF Mono', monospace" font-size="9.5" font-weight="600" fill="#a78bfa" text-anchor="middle" opacity="0.9">Context</text>
+
+  <!-- MCP → Notes: FTS5 query -->
+  <path d="M 725 370 L 795 370" stroke="#eab308" stroke-width="2.5" stroke-dasharray="5,4" marker-end="url(#arrowYellow)" opacity="0.8"/>
+  <text x="760" y="362" font-family="'SF Mono', monospace" font-size="9.5" font-weight="600" fill="#eab308" text-anchor="middle" opacity="0.9">FTS5</text>
+
+  <!-- Notes → MCP: Extracted content -->
+  <path d="M 795 430 L 725 430" stroke="#34d399" stroke-width="2.5" marker-end="url(#arrowEmerald)" opacity="0.8"/>
+  <text x="760" y="448" font-family="'SF Mono', monospace" font-size="9.5" font-weight="600" fill="#34d399" text-anchor="middle" opacity="0.9">Extract</text>
+
+  <!-- ==================== -->
+  <!-- Footer: protocol     -->
+  <!-- ==================== -->
+  <text x="600" y="604" font-family="'SF Mono', monospace" font-size="11" font-weight="500" fill="#334155" text-anchor="middle" letter-spacing="2">STDIO · MODEL CONTEXT PROTOCOL · READ-ONLY</text>
+
+</svg>

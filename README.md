@@ -1,5 +1,9 @@
 # apple-notes-pdf-mcp
 
+<p align="center">
+  <img src="docs/hero.svg" alt="apple-notes-pdf-mcp" width="720">
+</p>
+
 An MCP server that gives LLMs access to your Apple Notes -- including extracted text from PDF attachments and inline images.
 
 Every existing Apple Notes integration only exposes note body text via AppleScript. This server goes further: it queries the NoteStore SQLite database to find PDF and image attachments, resolves their on-disk file paths, extracts text with [pdfplumber](https://github.com/jsvine/pdfplumber), encodes images for multimodal LLMs, and provides FTS5 full-text search across titles, snippets, filenames, summaries, OCR text, and URLs. An LLM can search and reason over receipts, lab results, contracts, papers -- anything you've attached to a note.
