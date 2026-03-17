@@ -237,7 +237,7 @@ class TestSearchNotes:
         results = search_notes(notestore_db, "ZACCOUNT4", "Test")
         assert len(results) >= 1
         note = [r for r in results if r["title"] == "Test Note"][0]
-        assert note["note_url"] == "https://james-andrews-coulter.github.io/notes-link/?id=NOTE-UUID-2"
+        assert note["note_url"] == "https://james-andrews-coulter.github.io/apple-notes-pdf-mcp/?id=NOTE-UUID-2"
 
 
 def test_get_note_identifier(notestore_db):
@@ -340,8 +340,8 @@ class TestListNotesSql:
         """Results include note_url field with deep link."""
         results = list_notes_sql(notestore_db, "ZACCOUNT4")
         by_title = {r["title"]: r for r in results}
-        assert by_title["Test Note"]["note_url"] == "https://james-andrews-coulter.github.io/notes-link/?id=NOTE-UUID-2"
-        assert by_title["Followup appointment"]["note_url"] == "https://james-andrews-coulter.github.io/notes-link/?id=NOTE-UUID-7"
+        assert by_title["Test Note"]["note_url"] == "https://james-andrews-coulter.github.io/apple-notes-pdf-mcp/?id=NOTE-UUID-2"
+        assert by_title["Followup appointment"]["note_url"] == "https://james-andrews-coulter.github.io/apple-notes-pdf-mcp/?id=NOTE-UUID-7"
 
 
 class TestFTS5Search:
