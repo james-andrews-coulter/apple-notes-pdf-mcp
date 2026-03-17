@@ -354,14 +354,18 @@ def search_notes(
             identifier = r[4]
             note_url = f"applenotes://showNote?noteId={identifier}" if identifier else None
 
+            title = r[1] or ""
+            citation = f"[{title}]({note_url})" if note_url else title
+
             results.append({
                 "id": note_id,
-                "title": r[1] or "",
+                "title": title,
                 "snippet": (r[2] or "")[:200],
                 "modification_date": mod_date_str,
                 "attachment_count": att_count,
                 "match_surface": "title/snippet" if r[0] in title_pks else "attachment_filename",
                 "note_url": note_url,
+                "citation": citation,
             })
 
         return results
@@ -443,14 +447,18 @@ def list_notes_sql(
             note_id = f"x-coredata://{uuid_part}/ICNote/p{pk}"
             note_url = f"applenotes://showNote?noteId={identifier}" if identifier else None
 
+            display_title = title or ""
+            citation = f"[{display_title}]({note_url})" if note_url else display_title
+
             results.append({
                 "id": note_id,
-                "title": title or "",
+                "title": display_title,
                 "folder": folder or "",
                 "snippet": (snippet or "")[:200],
                 "modification_date": mod_date_str,
                 "attachment_count": att_count,
                 "note_url": note_url,
+                "citation": citation,
             })
 
         return results
@@ -589,14 +597,18 @@ def search_notes_fts(
             note_id = f"x-coredata://{uuid_part}/ICNote/p{pk}"
             note_url = f"applenotes://showNote?noteId={identifier}" if identifier else None
 
+            display_title = title or ""
+            citation = f"[{display_title}]({note_url})" if note_url else display_title
+
             results.append({
                 "id": note_id,
-                "title": title or "",
+                "title": display_title,
                 "snippet": (snippet or "")[:200],
                 "modification_date": mod_date_str,
                 "attachment_count": att_count,
                 "match_surface": "fts5",
                 "note_url": note_url,
+                "citation": citation,
                 "_rank_order": rank_order.get(pk, 999),
             })
 

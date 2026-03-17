@@ -256,13 +256,17 @@ def get_note(
                     "type": row["uti"],
                 })
 
+    title = note.get("title", "")
+    citation = f"[{title}]({note_url})" if note_url else title
+
     response = {
         "id": note.get("id"),
-        "title": note.get("title"),
+        "title": title,
         "body": note.get("body"),
         "folder": note.get("folder"),
         "modification_date": note.get("modification_date"),
         "note_url": note_url,
+        "citation": citation,
         "pdf_attachments": pdf_attachments,
         "image_attachments": image_attachments_meta,
         "other_attachments": other_attachments,
