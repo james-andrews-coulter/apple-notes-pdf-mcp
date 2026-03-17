@@ -11,7 +11,7 @@ AppleScript can tell you a PDF is attached to a note, but it can't read what the
 1. **AppleScript (JXA)** for note body text, titles, and metadata
 2. **SQLite + filesystem** for resolving attachment file paths, extracting PDF content, encoding images, and FTS5 full-text search
 
-The search is FTS5-backed with Porter stemming, meaning it finds notes by **title, body snippet, attachment filename, summary, OCR summary, and URL** -- not just body text. A note titled "Followup appointment" with a PDF named "blood test results.pdf" will be found when you search for "blood test." Every result includes an `applenotes://` deep link that opens the note directly in Notes.app.
+The search is FTS5-backed with Porter stemming, meaning it finds notes by **title, body snippet, attachment filename, summary, OCR summary, and URL** -- not just body text. A note titled "Followup appointment" with a PDF named "blood test results.pdf" will be found when you search for "blood test." Every result includes a `citation` field with a pre-formatted markdown link that opens the note directly in Notes.app (works on macOS and iOS, including in Telegram).
 
 ## Install
 
@@ -60,14 +60,36 @@ User: What was my ferritin level in my latest blood test?
 Claude: I'll search your notes for blood test results.
 -> search_notes("ferritin")
    Found "Followup Blood Test" (matched via fts5)
-   note_url: applenotes://showNote?noteId=ABC123-DEF456
+   citation: "[Followup Blood Test](https://...notes-link/?id=ABC123)"
 
 -> get_note("x-coredata://.../ICNote/p11734")
    Extracted text from "iron ferritin blood test results.pdf"
-   Encoded 1 image attachment
 
 Your ferritin level was 27 ug/L according to the iron studies panel
-in your attached PDF. [Followup Blood Test](applenotes://showNote?noteId=ABC123-DEF456)
+in your attached PDF.
+Source: [Followup Blood Test](https://...notes-link/?id=ABC123)
+```
+
+The `citation` field in every response is a pre-formatted markdown link. Agents should copy it verbatim. The link redirects through a lightweight page that detects iOS vs macOS and opens Notes.app with the correct URI scheme.
+
+### Multiple sources
+
+When a query spans multiple notes, each result has its own `citation`:
+
+```
+User: Give me a timeline of my iron deficiency.
+
+Claude:
+-> search_notes("iron")  -- returns 3 notes, each with citation field
+
+Dec 2025: Ferritin 50.3 ug/L (normal range)
+[annual blood test results](https://...notes-link/?id=A9B5...)
+
+Feb 2026: Ferritin 27 ug/L (below range, iron deficient)
+[Followup Blood Test](https://...notes-link/?id=5391...)
+
+Ongoing: Supplementing with iron bisglycinate, red meat 2x/week
+[Iron deficiency plan](https://...notes-link/?id=9D8C...)
 ```
 
 ## Agent Configuration
@@ -76,7 +98,7 @@ See [USAGE.md](USAGE.md) for a detailed guide on configuring LLM agents, includi
 
 - Recommended navigation workflow (list folders -> search -> get note)
 - Folder-scoped system prompt templates
-- Citation patterns with `applenotes://` deep links
+- Citation patterns with clickable deep links (HTTPS redirect → Notes.app)
 - FTS5 search tips (stemming, prefix matching)
 - Full tool parameter reference
 
@@ -129,7 +151,7 @@ The first time the server runs, macOS will prompt you to allow your terminal to 
 - **Read-only.** The server never writes to the database, media files, or notes. All AppleScript calls are read operations. SQLite opens in read-only mode (FTS5 index is built on a temp copy).
 - **FTS5 full-text search.** A virtual FTS5 table with Porter stemming is created on the temp DB copy at search time. It indexes titles, snippets, attachment filenames, summaries, OCR summaries, and URLs -- giving ranked, typo-tolerant results.
 - **Image support via sips.** HEIC images are converted to JPEG using macOS's built-in `sips` tool. Images over the size limit are resized down. Encoded as base64 and returned as MCP `ImageContent` blocks.
-- **Deep links via ZIDENTIFIER.** Every note response includes an `applenotes://showNote?noteId={UUID}` URL built from the note's `ZIDENTIFIER` column. Works on macOS and iOS.
+- **Deep links via ZIDENTIFIER.** Every response includes a `citation` field with a clickable HTTPS link that redirects to `notes://` (macOS) or `mobilenotes://` (iOS) via a lightweight GitHub Pages redirect. Platform detection is automatic.
 - **WAL-safe DB access.** The NoteStore database is copied (with WAL and SHM files) to a temp directory before querying, avoiding lock contention with Notes.app.
 - **ZACCOUNT column probing.** The column used for note->account joins varies across macOS versions (`ZACCOUNT2` through `ZACCOUNT8`). The server probes for the correct one at startup.
 - **Intermediate subdirectory handling.** On-disk attachment paths include a variable intermediate directory (`Media/{uuid}/{sub_uuid}/{filename}`), resolved via glob.

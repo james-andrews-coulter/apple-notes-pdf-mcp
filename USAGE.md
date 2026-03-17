@@ -23,35 +23,42 @@ SCOPE: Only search within the "Health & Fitness" folder and its subfolders.
 Always start by calling list_folders to understand the folder structure.
 When searching, use the folder parameter: search_notes(query, folder="Health & Fitness")
 
-CITATIONS: When referencing information from notes, always include:
-- The note title
-- A clickable link using the note_url field: [Note Title](note_url)
-- The source context (which part of the note or which PDF attachment)
+CITATIONS: Every tool response includes a `citation` field with a pre-formatted
+markdown link. Copy it verbatim into your response when referencing a note.
+When citing multiple notes, include all citation links.
 
 NAVIGATION: If initial search returns few results:
 1. Check list_folders for relevant subfolders
 2. Broaden the search to parent folder
 3. Try different search terms (FTS5 supports prefix matching with *)
+4. If documents may be in a foreign language, try searching in that language too
 ```
 
 ## Citation Pattern
 
-All tool responses include a `note_url` field with the format:
+All tool responses include a `citation` field containing a pre-formatted markdown link:
 
 ```
-applenotes://showNote?noteId={UUID}
+[Note Title](https://your-redirect.github.io/notes-link/?id=UUID)
 ```
 
-This deep link works across Apple platforms:
+The link is an HTTPS URL that redirects to open the note in Notes.app. It automatically detects iOS vs macOS and uses the correct URI scheme (`mobilenotes://` or `notes://`).
 
-- **macOS**: Opens Notes.app directly to the note.
-- **iOS/iPadOS**: Opens the Notes app directly to the note.
-- **Telegram, Slack, or other chat**: Include as a markdown link so the user can tap through:
-  ```
-  [Note Title](applenotes://showNote?noteId=UUID)
-  ```
+**Agents should copy the `citation` field verbatim** -- do not reconstruct the link manually.
 
-Agents should always cite sources with this link so users can verify information against the original note.
+### Multiple sources
+
+When a query involves multiple notes, each result has its own `citation`. Include all of them:
+
+```
+Dec 2025: Ferritin 50.3 ug/L -- [annual blood test results](https://.../?id=A9B5...)
+Feb 2026: Ferritin 27 ug/L -- [Followup Blood Test](https://.../?id=5391...)
+Ongoing plan -- [Iron deficiency plan](https://.../?id=9D8C...)
+```
+
+### Self-hosting the redirect
+
+The default `citation` URLs point to a GitHub Pages redirect. To self-host, deploy the single-file redirect page from [notes-link](https://github.com/james-andrews-coulter/notes-link) and update the URL base in `notestore.py`.
 
 ## Search Tips
 
@@ -62,6 +69,7 @@ The `search_notes` tool uses SQLite FTS5 (full-text search) under the hood. Key 
 - **Multi-surface search**: Queries match against note titles, body snippets, attachment filenames, note summaries, OCR summaries, and URLs.
 - **Folder scoping**: Use the `folder` parameter to restrict results to a folder and all its subfolders.
 - **Ranked results**: FTS5 returns results ranked by relevance, not just modification date.
+- **Multilingual content**: FTS5 indexes whatever text is stored. If notes contain foreign-language documents, search in that language too.
 
 If FTS5 is unavailable (e.g., older SQLite build), the server automatically falls back to LIKE-based search.
 
@@ -69,6 +77,6 @@ If FTS5 is unavailable (e.g., older SQLite build), the server automatically fall
 
 | Tool | Parameters | Description |
 |------|-----------|-------------|
-| `search_notes` | `query=""`, `folder=None`, `sort_by="modified"`, `limit=50`, `ascending=False` | The primary discovery tool. With a query: FTS5-backed multi-surface search. With an empty query: lists recent notes sorted by modification date. |
-| `get_note` | `note_id`, `max_pages_per_pdf=50`, `include_images=True`, `max_image_size=1048576` | Full body + extracted PDF text + base64-encoded images. The primary tool for deep content retrieval. |
+| `search_notes` | `query=""`, `folder=None`, `sort_by="modified"`, `limit=50`, `ascending=False` | The primary discovery tool. With a query: FTS5-backed multi-surface search. With an empty query: lists recent notes sorted by modification date. Every result includes a `citation` field. |
+| `get_note` | `note_id`, `max_pages_per_pdf=50`, `include_images=True`, `max_image_size=1048576` | Full body + extracted PDF text + base64-encoded images. Includes a `citation` field. |
 | `list_folders` | _(none)_ | Folder tree with note counts per folder. Use to understand the folder hierarchy before searching. |
