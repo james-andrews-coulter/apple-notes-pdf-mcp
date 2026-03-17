@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<title>Opening note...</title>
+<script>
+const id = new URLSearchParams(window.location.search).get("id");
+if (id) {
+  const iOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const scheme = iOS ? "mobilenotes" : "notes";
+  window.location.href = scheme + "://showNote?identifier=" + encodeURIComponent(id);
+} else {
+  document.body.textContent = "Missing ?id= parameter";
+}
+</script>
+</head><body>
+<p>Opening note...</p>
+</body></html>
