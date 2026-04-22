@@ -1,7 +1,7 @@
-# apple-notes-pdf-mcp
+# apple-notes-store-mcp
 
 <p align="center">
-  <img src="docs/hero.svg" alt="apple-notes-pdf-mcp" width="720">
+  <img src="docs/hero.svg" alt="apple-notes-store-mcp" width="720">
 </p>
 
 An MCP server that gives LLMs access to your Apple Notes -- including extracted text from PDF attachments and inline images.
@@ -28,7 +28,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "apple-notes-pdf": {
       "command": "uvx",
-      "args": ["apple-notes-pdf-mcp"]
+      "args": ["apple-notes-store-mcp"]
     }
   }
 }
@@ -37,13 +37,13 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 ### Claude Code
 
 ```bash
-claude mcp add apple-notes-pdf -- uvx apple-notes-pdf-mcp
+claude mcp add apple-notes-pdf -- uvx apple-notes-store-mcp
 ```
 
 ### Other MCP clients
 
 ```bash
-uvx apple-notes-pdf-mcp
+uvx apple-notes-store-mcp
 ```
 
 The server communicates over stdio using the [Model Context Protocol](https://modelcontextprotocol.io/).
@@ -64,14 +64,14 @@ User: What was my ferritin level in my latest blood test?
 Claude: I'll search your notes for blood test results.
 -> search_notes("ferritin")
    Found "Followup Blood Test" (matched via fts5)
-   citation: "[Followup Blood Test](https://...apple-notes-pdf-mcp/?id=ABC123)"
+   citation: "[Followup Blood Test](https://...apple-notes-store-mcp/?id=ABC123)"
 
 -> get_note("x-coredata://.../ICNote/p11734")
    Extracted text from "iron ferritin blood test results.pdf"
 
 Your ferritin level was 27 ug/L according to the iron studies panel
 in your attached PDF.
-Source: [Followup Blood Test](https://...apple-notes-pdf-mcp/?id=ABC123)
+Source: [Followup Blood Test](https://...apple-notes-store-mcp/?id=ABC123)
 ```
 
 The `citation` field in every response is a pre-formatted markdown link. Agents should copy it verbatim. The link redirects through a lightweight page that detects iOS vs macOS and opens Notes.app with the correct URI scheme.
@@ -87,13 +87,13 @@ Claude:
 -> search_notes("iron")  -- returns 3 notes, each with citation field
 
 Dec 2025: Ferritin 50.3 ug/L (normal range)
-[annual blood test results](https://...apple-notes-pdf-mcp/?id=A9B5...)
+[annual blood test results](https://...apple-notes-store-mcp/?id=A9B5...)
 
 Feb 2026: Ferritin 27 ug/L (below range, iron deficient)
-[Followup Blood Test](https://...apple-notes-pdf-mcp/?id=5391...)
+[Followup Blood Test](https://...apple-notes-store-mcp/?id=5391...)
 
 Ongoing: Supplementing with iron bisglycinate, red meat 2x/week
-[Iron deficiency plan](https://...apple-notes-pdf-mcp/?id=9D8C...)
+[Iron deficiency plan](https://...apple-notes-store-mcp/?id=9D8C...)
 ```
 
 ## Agent Configuration
@@ -130,7 +130,7 @@ The first time the server runs, macOS will prompt you to allow your terminal to 
 +-------------------+-----------------------+
                     | MCP protocol (stdio)
 +-------------------v-----------------------+
-|  apple-notes-pdf-mcp                      |
+|  apple-notes-store-mcp                      |
 |                                           |
 |  Tools:                                   |
 |  +- search_notes         (FTS5 / SQLite)  |
@@ -176,8 +176,8 @@ The first time the server runs, macOS will prompt you to allow your terminal to 
 ## Development
 
 ```bash
-git clone https://github.com/james-andrews-coulter/apple-notes-pdf-mcp.git
-cd apple-notes-pdf-mcp
+git clone https://github.com/james-andrews-coulter/apple-notes-store-mcp.git
+cd apple-notes-store-mcp
 uv sync
 uv run pytest tests/ -v
 ```
